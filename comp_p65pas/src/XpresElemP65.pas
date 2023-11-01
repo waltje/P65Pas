@@ -28,9 +28,9 @@ type  //Hardware dependent definitions
     used    : boolean;   //Indica si está usado.
   end;
 
-  { TxpAdicDeclar }
+  { TAdicDeclar }
   {Define aditional declaration settings for variable. Depends on target CPU architecture.}
-  TxpAdicDeclar = (
+  TAdicDeclar = (
     decNone,   //Normal declaration. Will be mapped in RAM according compiler decision.
     decAbsol,  //Mapped in ABSOLUTE address
     decZeroP,  //Mapped in Zero page
@@ -43,25 +43,25 @@ type  //Hardware dependent definitions
 type  //Previous definitions for elements
   TVarOffs = word;
 
-  TxpElement = class;
-  TxpElements = specialize TFPGObjectList<TxpElement>;
+  TAstElement = class;
+  TAstElements = specialize TFPGObjectList<TAstElement>;
 
-  { TxpEleCaller }
+  { TAstEleCaller }
   //Information about the call to one element from other element.
-  TxpEleCaller = class
+  TAstEleCaller = class
     curPos: TSrcPos;    //Position from where it is called this element.
-    caller: TxpElement; //Element that calls this element (Function body or variable).
-    function CallerUnit: TxpElement;  //Unit/Program from where it is called this element.
+    caller: TAstElement; //Element that calls this element (Function body or variable).
+    function CallerUnit: TAstElement;  //Unit/Program from where it is called this element.
   end;
-  TxpListCallers = specialize TFPGObjectList<TxpEleCaller>;
+  TAstListCallers = specialize TFPGObjectList<TAstEleCaller>;
 
   //Datos de las llamadas que se hacen a otro elemento
-//  TxpEleCalled = class
+//  TAstEleCalled = class
 //    curPos: TSrcPos;    //Posición desde donde es llamado
 //    curBnk: byte;       //banco RAM, desde donde se llama
-//    called: TxpElement; //función que llama a esta función
+//    called: TAstElement; //función que llama a esta función
 //  end;
-  TxpListCalled = specialize TFPGObjectList<TxpElement>;
+  TAstListCalled = specialize TFPGObjectList<TAstElement>;
 
   //Groups of data types.
   TTypeGroup=(
@@ -118,7 +118,7 @@ type
   REGISTER,  or initialization. }
   TAdicVarDec = record
     //Absolute or register information.
-    hasAdic  : TxpAdicDeclar; //Flag. Indicates when variable is register or absolute.
+    hasAdic  : TAdicDeclar; //Flag. Indicates when variable is register or absolute.
     absVar   : TEleVarDec;    //Reference to variable, when is ABSOLUTE <variable>
     absAddr  : integer;       //ABSOLUTE address
     absOff   : integer;       //Offset to variable when ABSOLUTE.
@@ -132,7 +132,7 @@ type
   end;
 type  //Type categories and declaration styles
   //Type categories
-  TxpCatType = (
+  TCatType = (
     tctAtomic,  //Basic types as Byte, Word or Char.
     tctArray,   //Array of some other type.
     tctPointer, //Pointer to other type.
@@ -187,9 +187,9 @@ type  //Type categories and declaration styles
                       TYPE refchar = POINTER TO char; }
   );
 
-type  //TxpElement class
+type  //TAstElement class
   //Element types for the language.
-  TxpIDClass = (//Declaraction
+  TAstIDClass = (//Declaraction
                 eleNone,      //No type
                 eleVarDec,    //Variable declaration
                 eleConsDec,   //Constant declaration
@@ -212,54 +212,54 @@ type  //TxpElement class
                 eleAsmBlock   //ASM block
                 );
   TEleCodeCont = class;
-  { TxpElement }
+  { TAstElement }
   //Base class for all syntactic elements
-  TxpElement = class
+  TAstElement = class
   private
     Fname    : string;   //Element name
     Funame   : string;   //Upper case name. Used to acelerate searchings.
     procedure Setname(AValue: string);
   public  //Callers management
     //List of functions that calls to this function.
-    lstCallers: TxpListCallers;
+    lstCallers: TAstListCallers;
     function nCalled: integer; virtual; //número de llamadas
-    function IsCalledBy(callElem: TxpElement): boolean; //Identifica a un llamador
-    function IsCalledByChildOf(callElem: TxpElement): boolean; //Identifica a un llamador
+    function IsCalledBy(callElem: TAstElement): boolean; //Identifica a un llamador
+    function IsCalledByChildOf(callElem: TAstElement): boolean; //Identifica a un llamador
     function IsCalledAt(callPos: TSrcPos): boolean;
     function IsDeclaredAt(decPos: TSrcPos): boolean;
-    function FindCalling(callElem: TxpElement): TxpEleCaller; //Identifica a un llamada
-    function RemoveCallsFrom(callElem: TxpElement): integer; //Elimina llamadas
+    function FindCalling(callElem: TAstElement): TAstEleCaller; //Identifica a un llamada
+    function RemoveCallsFrom(callElem: TAstElement): integer; //Elimina llamadas
     procedure RemoveLastCaller; //Elimina la última llamada
     procedure ClearCallers;  //limpia lista de llamantes
-//    function ExistsIn(list: TxpElements): boolean;
+//    function ExistsIn(list: TAstElements): boolean;
   public  //Gestión de los elementos llamados
     curNesting: Integer;   //Nested level for calls
     maxNesting: Integer;   //Max nested level for calls
     //Lista de funciones que son llamadas directamente (Se llena en el enlazado)
-    lstCalled : TxpListCalled;
+    lstCalled : TAstListCalled;
     //Lista de funciones que son llamadas dirceta o indirectamente (Se llena en el enlazado)
-    lstCalledAll: TxpListCalled;
+    lstCalledAll: TAstListCalled;
     //Métodos para el llemado
-    procedure AddCalled(elem: TxpElement);
+    procedure AddCalled(elem: TAstElement);
     function UpdateCalledAll: integer;
   public
-    Parent  : TxpElement;  //Reference to parent element
-    idClass : TxpIDClass;  //To avoid use RTTI
-    elements: TxpElements; //Container list for other elements
-    location: TxpEleLocation;  //Element location
+    Parent  : TAstElement;  //Reference to parent element
+    idClass : TAstIDClass;  //To avoid use RTTI
+    elements: TAstElements; //Container list for other elements
+    location: TElemLocation;  //Element location
     codCont : TEleCodeCont;  //Temporal field for Code container.
     property name: string read Fname write Setname;
     property uname: string read Funame;
     function Path: string;
-    function FindElemName(const eName: string; out ele: TxpElement): boolean;
+    function FindElemName(const eName: string; out ele: TAstElement): boolean;
     function FindIdxElemName(const eName: string; var idx0: integer): boolean;
-    function LastNode: TxpElement;
+    function LastNode: TAstElement;
     function Index: integer;
-    function AddElement(elem: TxpElement; position: integer = - 1): TxpElement;
+    function AddElement(elem: TAstElement; position: integer = - 1): TAstElement;
   public  //Location in the source code.
     //Where the element is declared.
     srcDec: TSrcPos;
-    {Ending location of the element. Useful in elements TxpEleBody, to limit the
+    {Ending location of the element. Useful in elements TEleBody, to limit the
     block of code.}
     srcEnd: TSrcPos;
     function posXYin(const posXY: TPoint): boolean;
@@ -273,19 +273,16 @@ type  //Declaration elements
   TEleFun = class;
 
   {Base class to derivate: Body, Blocks, Or a Declaration  }
-  TEleCodeCont = class(TxpElement)
+  TEleCodeCont = class(TAstElement)
   end;
 
   TEleTypeDec= class;
   TEleTypeDecs= specialize TFPGObjectList<TEleTypeDec>; //lista de variables
 
-  { TxpEleType }
-  {Clase para modelar a los tipos definidos por el usuario y a los tipos del sistema.
-  Es una clase relativamente extensa, debido a la flxibilidad que ofrecen lso tipos en
-  Pascal.}
-
   { TEleTypeDec }
-
+  {Clase para modelar a los tipos definidos por el usuario y a los tipos del sistema.
+  Es una clase relativamente extensa, debido a la flxibilidad que ofrecen los tipos en
+  Pascal.}
   TEleTypeDec = class(TEleCodeCont)
   private
     fSize: word;
@@ -301,7 +298,7 @@ type  //Declaration elements
   public   //Identification
     copyOf  : TEleTypeDec;  //Indicates this type is copy of other
     group   : TTypeGroup;   //Type group (numéric, string, etc)
-    catType : TxpCatType;   //Categoría del tipo
+    catType : TCatType;   //Categoría del tipo
     property size: word read getSize write setSize;   //Tamaño en bytes del tipo
     function groupStr: string;
     function catTypeStr: string;
@@ -318,7 +315,7 @@ type  //Declaration elements
   public   //Fields when type is Object
     objSize : integer;
   public   //Information
-    tmpNode: TxpElement;  //Temporal node informatios. Used by OpenTypeDec().
+    tmpNode: TAstElement;  //Temporal node informatios. Used by OpenTypeDec().
     function IsByteSize: boolean;
     function IsWordSize: boolean;
     function IsDWordSize: boolean;
@@ -330,7 +327,7 @@ type  //Declaration elements
     destructor Destroy; override;
   end;
 
-  { TxpEleCon }
+  { TEleCodeCont }
   //Class to modelate constants declaration.
   TEleConsDec = class(TEleCodeCont)
     //Element type
@@ -444,14 +441,6 @@ public mirVarDec: TObject;  //Formalmente debe ser TMirVarDec, pero se pone TObj
   TEleVarDecs = specialize TFPGObjectList<TEleVarDec>;
 
 type  //Expression elements
-//  { TxpEleOperator }
-//  {Represent an operation in ASM expressions.}
-//  TEleAsmOperat= class(TxpElement)
-//    operation : TAsmInstOperation;   //Operation
-//    value     : word;                //Value
-//    constructor Create; override;
-//  end;
-
   TEleFunBase = class;
   TEleFunDec = class;
 
@@ -464,7 +453,7 @@ type  //Expression elements
   );
   { TEleExpress }
   {Represents an expression/operand. }
-  TEleExpress = class(TxpElement)
+  TEleExpress = class(TAstElement)
   public
     opType  : TopType;      //Operand type: otVariab, otConst, otFunct.
     Sto     : TStorage;     //Storage of the value (memory, register, value)
@@ -536,26 +525,26 @@ type  //Expression elements
   { TEleCondit }
   {Represents a condition or boolean expression. Used to represent conditional
   expression in conditional statements.}
-  TEleCondit = class(TxpElement)
+  TEleCondit = class(TAstElement)
   public  //Initialization
     constructor Create; override;
   end;
 type  //Structural elements
 
-  { TxpExitCall }
+  { TExitCall }
 //  //Clase que representa una llamada a la instrucción exit()
-//  TxpExitCall = class
+//  TExitCall = class
 //    srcPos : TSrcPos;    //Posición en el código fuente
-//    codeBlk: TxpEleCodeCont; {Must refer to a:
+//    codeBlk: TEleCodeCont; {Must refer to a:
 //                             - Body of a function/program.
 //                             - The block section of a sentence that can contain block of
 //                               code like: IF, FOR, WHILE, REPEAT.
 //                             Other cases are not yet analyzed if are valid.  }
 //    function IsObligat: boolean;
 //  end;
-//  TxpExitCalls = specialize TFPGObjectList<TxpExitCall>; //lista de variables
+//  TExitCalls = specialize TFPGObjectList<TExitCall>; //lista de variables
 
-  { TxpEleBody }
+  { TEleBody }
   //Class to modelate the body of the main program or the procedures.
   TEleBody = class(TEleCodeCont)
     adrr   : integer;  //Physical address
@@ -563,7 +552,7 @@ type  //Structural elements
     destructor Destroy; override;
   end;
 
-  { TxpEleBlock }
+  { TEleBlock }
   //Class to modelate a block of code, like a BEGIN...END or the body of conditional.
   TEleBlock = class(TEleCodeCont)
     //adrr   : integer;  //dirección física
@@ -577,7 +566,7 @@ type  //Structural elements
   including declaractions (VAR, CONST, PROCEDURE) and a Code container (BODY).
   be used as a general code container, like the main program,
   a procedure or a unit.}
-  TEleProgFrame = class(TxpElement)
+  TEleProgFrame = class(TAstElement)
   public
     function BodyNode: TEleBody;
   public //Manejo de llamadas a exit()
@@ -593,9 +582,9 @@ type  //Structural elements
     porque el AST ya lo incluye. Además para optimización del RTS, solo basta con
     saber si hay al menos un exit() en código obligatorio, que por fuerza será el
     último en ejecutarse}
-    //lstExitCalls: TxpExitCalls;
-    //procedure AddExitCall(srcPos: TSrcPos; codeBlk: TxpEleCodeCont);
-    //function ObligatoryExit: TxpExitCall;
+    //lstExitCalls: TExitCalls;
+    //procedure AddExitCall(srcPos: TSrcPos; codeBlk: TEleCodeCont);
+    //function ObligatoryExit: TExitCall;
   public //Inicialización
     procedure Clear; override;
     constructor Create; override;
@@ -603,7 +592,7 @@ type  //Structural elements
   end;
 
   //Clase para modelar al bloque principal
-  { TxpEleProg }
+  { TEleProg }
   TEleProg = class(TEleProgFrame)
     //Como este nodo representa al programa principal, se incluye información física
     srcSize: integer;  {Tamaño del código compilado. En la primera pasada, es referencial,
@@ -611,21 +600,21 @@ type  //Structural elements
     constructor Create; override;
   end;
 
-  { TxpEleUnit }
+  { TEleUnit }
   //Clase para modelar a las unidades
   TEleUnit = class(TEleProgFrame)
   public
     srcFile: string;   //El archivo en donde está físicamente la unidad.
-    InterfaceElements: TxpElements;  //Lista de eleemntos en la sección INTERFACE
+    InterfaceElements: TAstElements;  //Lista de eleemntos en la sección INTERFACE
     procedure ReadInterfaceElements;
     constructor Create; override;
     destructor Destroy; override;
   end;
   TEleUnits = specialize TFPGObjectList<TEleUnit>; //lista de constantes
 
-  { TxpEleFinal }
+  { TEleFinal }
   //Clase para modelar al bloque FINALIZATION de una unidad
-  TEleFinal = class(TxpElement)
+  TEleFinal = class(TAstElement)
     adrr   : integer;  //dirección física
     constructor Create; override;
     destructor Destroy; override;
@@ -633,7 +622,7 @@ type  //Structural elements
 
 type  //Instructions relative elements
   //Sentences categories
-  TxpSentence = (
+  TSentenceType = (
     sntNull,       //Default value
     sntAssign,     //Assignment
     sntProcCal,    //Procedure call
@@ -649,9 +638,9 @@ type  //Instructions relative elements
 
   { TEleSentence }
   {Represents a Pascal instruction.}
-  TEleSentence = class(TxpElement)
+  TEleSentence = class(TAstElement)
   public
-    sntType: TxpSentence;  //Sentence type
+    sntType: TSentenceType;  //Sentence type
     function sntTypeAsStr: string;
     constructor Create; override;
   end;
@@ -680,7 +669,7 @@ type  //Instructions relative elements
     val: integer;    {The value of instruction operand, when it's a simple number.
                       When it's -1, the operand is a reference to an element and
                       should be read in "operRef".}
-    ref: TxpElement; {Reference to element when operand refers to some Pascal or
+    ref: TAstElement; {Reference to element when operand refers to some Pascal or
                       ASM element.}
     nam: string;     {Operand name. Used when operand is an unsolved reference}
     used: boolean;   //Indicates if operand is used or not.
@@ -692,7 +681,7 @@ type  //Instructions relative elements
   { TEleAsmInstr }
   {Represents a line of assembler inside an ASM block.
   Consider this is a hardware dependent format}
-  TEleAsmInstr = class(TxpElement)
+  TEleAsmInstr = class(TAstElement)
     addr   : integer;  //Starting Address. Used only in code generation.
     iType  : TiType;   //ASM instruction type
     //Fields to generate instructions, using TP6502.codAsm() or similar.
@@ -708,7 +697,7 @@ type  //Instructions relative elements
 
   { TEleAsmBlock }
   {Represents an ASM block. An ASM block contains several ASM lines ()}
-  TEleAsmBlock = class(TxpElement)
+  TEleAsmBlock = class(TAstElement)
     undefInstrucs: TEleAsmInstrs;   //List of instruction with operands undefined
     constructor Create; override;
     destructor Destroy; override;
@@ -717,7 +706,7 @@ type  //Instructions relative elements
 type  //Declaration elements (functions)
 
   //Function parameter
-  TxpParFunc = record
+  TParamFunc = record
     name    : string;      //Parameter name
     typ     : TEleTypeDec; //Reference to type
     pvar    : TEleVarDec;  //Reference to variable used for this parameter
@@ -727,7 +716,7 @@ type  //Declaration elements (functions)
                            //local variable. In ths way we can reuse this record to define
                            //local variabes too.
   end;
-  TxpParFuncArray = array of TxpParFunc;
+  TParamFuncArray = array of TParamFunc;
 
   //Clase para almacenar información de las funciones
   TCodSysInline = procedure(funEleExp: TEleExpress) of object;
@@ -758,7 +747,7 @@ type  //Declaration elements (functions)
     ctSysInline,   //Inline system function
     ctUsrExtern    //External function
   );
-  { TxpEleFunBase }
+  { TEleFunBase }
   TEleFunBase = class(TEleProgFrame)
     retType    : TEleTypeDec;  //Type returned
     IsInterrupt: boolean;      //Indicates the function is an ISR
@@ -779,13 +768,13 @@ type  //Declaration elements (functions)
     //Callback to SNF Routine when callType is ctSysNormal.
     codSysNormal: TCodSysNormal;
   public  //Parameters management
-    pars       : TxpParFuncArray; //parámetros de entrada
+    pars       : TParamFuncArray; //parámetros de entrada
     procedure ClearParams;
-    function SameParamsType(const funpars: TxpParFuncArray): boolean;
+    function SameParamsType(const funpars: TParamFuncArray): boolean;
     function ParamTypesList: string;
   end;
 
-  { TxpEleFunDec }
+  { TEleFunDec }
   {Represent a function declaration or header (INTERFACE o FORWARD).
   Basically what we store here is a reference to the implementation.}
   TEleFunDec = class(TEleFunBase)
@@ -795,7 +784,7 @@ type  //Declaration elements (functions)
     constructor Create; override;
   end;
 
-  { TxpEleFun }
+  { TEleFun }
   { Represents a function implementation (simple or inline) or a method (simple or inline). }
   TEleFun = class(TEleFunBase)
   public  //Main attributes
@@ -936,7 +925,7 @@ function TConsValue.valuesAsString: string;
 begin
   Result := 'int=' + IntToStr(ValInt) + ',bool=' + IfThen(ValBool,'T','F');
 end;
-{ TxpEleBlock }
+{ TEleBlock }
 constructor TEleBlock.Create;
 begin
   inherited Create;
@@ -946,12 +935,6 @@ destructor TEleBlock.Destroy;
 begin
   inherited Destroy;
 end;
-{ TxpEleOperator }
-//constructor TEleAsmOperat.Create;
-//begin
-//  inherited Create;
-//  idClass := eleAsmOperat;
-//end;
 { TEleExpress }
 function TEleExpress.opTypeAsStr: string;
 begin
@@ -1009,7 +992,7 @@ end;
 procedure TEleExpress.exchange2Children;
 {Exchange two children elements}
 var
-  tmp: TxpElement;
+  tmp: TAstElement;
 begin
   if (elements.Count = 2) then begin
     elements.Exchange(0,1);
@@ -1087,7 +1070,7 @@ end;
 procedure TEleExpress.Evaluate();
 var
   xfun: TEleFun;
-  ele: TxpElement;
+  ele: TAstElement;
   itemExp: TEleExpress;
   i: Integer;
 begin
@@ -1256,8 +1239,8 @@ begin
   undefInstrucs.Destroy;
   inherited Destroy;
 end;
-{ TxpExitCall }
-//function TxpExitCall.IsObligat: boolean;
+{ TExitCall }
+//function TExitCall.IsObligat: boolean;
 //{Indica si el exit se encuentra dentro de código obligatorio}
 //begin
 //  {Para detectar si el exit() está en código obligatorio, se verifica si se enceuntra
@@ -1267,11 +1250,11 @@ end;
 //  tiempo de compilación. Se podrúa mejorar después.}
 //  Result := (codeBlk.idClass = eleBody);  //Cuerpo de una función o el programa principal
 //end;
-{ TxpEleCaller }
-function TxpEleCaller.CallerUnit: TxpElement;
+{ TAstEleCaller }
+function TAstEleCaller.CallerUnit: TAstElement;
 {Devuelve el elemento unidad o programa principal, desde donde se hace esta llamada.}
 var
-  container: TxpElement;
+  container: TAstElement;
 begin
   {Se asume que la llamda se puede hacer solo desde dos puntos:
    - Desde una declaración.
@@ -1286,8 +1269,8 @@ begin
   Result := container;
   //No debería haber otro caso
 end;
-{ TxpElement }
-function TxpElement.AddElement(elem: TxpElement; position: integer=-1): TxpElement;
+{ TAstElement }
+function TAstElement.AddElement(elem: TAstElement; position: integer=-1): TAstElement;
 {Add an child element to the current node. Return reference. }
 begin
   elem.Parent := self;  //Update reference
@@ -1298,80 +1281,80 @@ begin
   end;
   Result := elem;       //No so useful
 end;
-procedure TxpElement.Setname(AValue: string);
+procedure TAstElement.Setname(AValue: string);
 begin
   if Fname = AValue then Exit;
   Fname    := AValue;
   Funame   := Upcase(AValue);
 end;
-function TxpElement.LastNode: TxpElement;
+function TAstElement.LastNode: TAstElement;
 {Devuelve una referencia al último nodo de "elements"}
 begin
   if elements = nil then exit(nil);
   if elements.Count = 0 then exit(nil);
   Result := elements[elements.Count-1];
 end;
-function TxpElement.Index: integer;
+function TAstElement.Index: integer;
 {Returns element location of node within its parent node.}
 begin
   Result := Parent.elements.IndexOf(self);  //No so fast.
 end;
 //Gestion de llamadas al elemento
-function TxpElement.nCalled: integer;
+function TAstElement.nCalled: integer;
 begin
   Result := lstCallers.Count;
 end;
-function TxpElement.IsCalledBy(callElem: TxpElement): boolean;
+function TAstElement.IsCalledBy(callElem: TAstElement): boolean;
 {Indica si el elemento es llamado por "callElem". Puede haber varias llamadas desde
 "callElem", pero basta que haya una para devolver TRUE.}
 var
-  cal : TxpEleCaller;
+  cal : TAstEleCaller;
 begin
   for cal in lstCallers do begin
     if cal.caller = callElem then exit(true);
   end;
   exit(false);
 end;
-function TxpElement.IsCalledByChildOf(callElem: TxpElement): boolean;
+function TAstElement.IsCalledByChildOf(callElem: TAstElement): boolean;
 {Indica si el elemento es llamado por algún elemento hijo de "callElem".
 Puede haber varias llamadas desde "callElem", pero basta que haya una para devolver TRUE.}
 var
-  cal : TxpEleCaller;
+  cal : TAstEleCaller;
 begin
   for cal in lstCallers do begin
     if cal.caller.Parent = callElem then exit(true);
   end;
   exit(false);
 end;
-function TxpElement.IsCalledAt(callPos: TSrcPos): boolean;
+function TAstElement.IsCalledAt(callPos: TSrcPos): boolean;
 {Indica si el elemento es llamado, desde la posición indicada.}
 var
-  cal : TxpEleCaller;
+  cal : TAstEleCaller;
 begin
   for cal in lstCallers do begin
     if cal.curPos.EqualTo(callPos) then exit(true);
   end;
   exit(false);
 end;
-function TxpElement.IsDeclaredAt(decPos: TSrcPos): boolean;
+function TAstElement.IsDeclaredAt(decPos: TSrcPos): boolean;
 begin
   Result := srcDec.EqualTo(decPos);
 end;
-function TxpElement.FindCalling(callElem: TxpElement): TxpEleCaller;
+function TAstElement.FindCalling(callElem: TAstElement): TAstEleCaller;
 {Busca la llamada de un elemento. Si no lo encuentra devuelve NIL.}
 var
-  cal : TxpEleCaller;
+  cal : TAstEleCaller;
 begin
   for cal in lstCallers do begin
     if cal.caller = callElem then exit(cal);
   end;
   exit(nil);
 end;
-function TxpElement.RemoveCallsFrom(callElem: TxpElement): integer;
+function TAstElement.RemoveCallsFrom(callElem: TAstElement): integer;
 {Elimina las referencias de llamadas desde un elemento en particular.
 Devuelve el número de referencias eliminadas.}
 var
-  cal : TxpEleCaller;
+  cal : TAstEleCaller;
   n, i: integer;
 begin
   {La búsqueda debe hacerse al revés para evitar el problema de borrar múltiples
@@ -1391,19 +1374,19 @@ begin
   end;
   Result := n;
 end;
-procedure TxpElement.RemoveLastCaller;
+procedure TAstElement.RemoveLastCaller;
 //Elimina el último elemento llamador agregado.
 begin
   if lstCallers.Count>0 then lstCallers.Delete(lstCallers.Count-1);
 end;
-procedure TxpElement.ClearCallers;
+procedure TAstElement.ClearCallers;
 begin
   lstCallers.Clear;
 end;
-//function TxpElement.ExistsIn(list: TxpElements): boolean;
+//function TAstElement.ExistsIn(list: TAstElements): boolean;
 //{Debe indicar si el elemento está duplicado en la lista de elementos proporcionada.}
 //var
-//  ele: TxpElement;
+//  ele: TAstElement;
 //begin
 //  for ele in list do begin
 //    if ele.uname = uname then begin
@@ -1413,19 +1396,19 @@ end;
 //  exit(false);
 //end;
 //Gestión de los elementos llamados
-procedure TxpElement.AddCalled(elem: TxpElement);
+procedure TAstElement.AddCalled(elem: TAstElement);
 begin
   if lstCalled.IndexOf(elem) = -1 then begin
     lstCalled.Add(elem);
   end;
 end;
-function TxpElement.UpdateCalledAll: integer;
+function TAstElement.UpdateCalledAll: integer;
 {Update list "lstCalledAll", using AddCalledAll_FromList().
   The return value is:
   * curNesting -> if not error happens.
   * <0  ->  If found recursion.
 }
-  function AddCalledAll(elem: TxpElement): boolean;
+  function AddCalledAll(elem: TAstElement): boolean;
   {Add reference to lstCalledAll. That is, indicates some element is called from this
   element.
   If reference already exists, retunr FALSE.}
@@ -1438,11 +1421,11 @@ function TxpElement.UpdateCalledAll: integer;
       exit(false);
     end;
   end;
-  function AddCalledAll_FromList(lstCalled0: TxpListCalled): integer;
+  function AddCalledAll_FromList(lstCalled0: TAstListCalled): integer;
   {Add the call references (to lstCalledAll) of all elements of the list lstCalled0,
   including its called too (recursive).}
   var
-    elem: TxpElement;
+    elem: TAstElement;
     err: Integer;
   begin
     inc(curNesting);    //incrementa el anidamiento
@@ -1506,10 +1489,10 @@ begin
   maxNesting := 0;
   Result := AddCalledAll_FromList(lstCalled);
 end;
-function TxpElement.Path: string;
+function TAstElement.Path: string;
 {Devuelve una cadena, que indica la ruta del elemento, dentro del árbol de sintaxis.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   ele := self;
   Result := '';
@@ -1518,12 +1501,12 @@ begin
     ele := ele.Parent;
   end;
 end;
-function TxpElement.FindElemName(const eName: string; out ele: TxpElement
+function TAstElement.FindElemName(const eName: string; out ele: TAstElement
   ): boolean;
 {Search a child element with the indicated name (eName). If found returns TRUE.}
 var
   eleName: String;
-  att: TxpElement;
+  att: TAstElement;
 begin
   eleName := UpCase(eName);
   if elements = nil then begin
@@ -1539,7 +1522,7 @@ begin
   ele := nil;
   exit(false);
 end;
-function TxpElement.FindIdxElemName(const eName: string; var idx0: integer): boolean;
+function TAstElement.FindIdxElemName(const eName: string; var idx0: integer): boolean;
 {Busca un nombre en su lista de elementos. Inicia buscando desde idx0, hasta el inicio.
  Si encuentra, devuelve TRUE y deja en idx0, la posición en donde se encuentra.}
 var
@@ -1557,7 +1540,7 @@ begin
   end;
   exit(false);
 end;
-function TxpElement.posXYin(const posXY: TPoint): boolean;
+function TAstElement.posXYin(const posXY: TPoint): boolean;
 {Indica si la coordeda del cursor, se encuentra dentro de las coordenadas del elemento.}
 var
   y1, y2: integer;
@@ -1599,7 +1582,7 @@ begin
   end;
 end;
 //Inicialización
-procedure TxpElement.Clear;
+procedure TAstElement.Clear;
 {Inicializa los campos del objeto. Este método es usado, solamente, para el Nodo Main,
 porque los otors nodos son eliminados de la memoria al iniciar el árbol}
 begin
@@ -1608,14 +1591,14 @@ begin
   lstCalled.Clear;
   lstCalledAll.Clear;
 end;
-constructor TxpElement.Create;
+constructor TAstElement.Create;
 begin
   idClass := eleNone;
-  lstCallers:= TxpListCallers.Create(true);
-  lstCalled := TxpListCalled.Create(false);  //solo guarda referencias
-  lstCalledAll:= TxpListCalled.Create(false);
+  lstCallers:= TAstListCallers.Create(true);
+  lstCalled := TAstListCalled.Create(false);  //solo guarda referencias
+  lstCalledAll:= TAstListCalled.Create(false);
 end;
-destructor TxpElement.Destroy;
+destructor TAstElement.Destroy;
 begin
   lstCalledAll.Destroy;
   lstCalled.Destroy;
@@ -1623,11 +1606,11 @@ begin
   elements.Free;  //por si contenía una lista
   inherited Destroy;
 end;
-{ TxpEleProgFrame }
+{ TEleProgFrame }
 function TEleProgFrame.BodyNode: TEleBody;
 {Devuelve la referencia al cuerpo del programa. Si no lo encuentra, devuelve NIL.}
 var
-  elem: TxpElement;
+  elem: TAstElement;
 begin
   elem := LastNode;   //Debe ser el último
   if elem = nil then exit(nil);
@@ -1659,18 +1642,18 @@ begin
   end;
 end;
 
-//procedure TEleProgFrame.AddExitCall(srcPos: TSrcPos; codeBlk: TxpEleCodeCont);
+//procedure TEleProgFrame.AddExitCall(srcPos: TSrcPos; codeBlk: TEleCodeCont);
 //var
-//  exitCall: TxpExitCall;
+//  exitCall: TExitCall;
 //begin
-//  exitCall := TxpExitCall.Create;
+//  exitCall := TExitCall.Create;
 //  exitCall.srcPos := srcPos;
 //  {Se guarda el ID, en lugar de la referencia al bloque, porque en el modo de trabajo
 //   actual, los bloques se crean y destruyen, dinámicamente}
 //  exitCall.codeBlk  := codeBlk;
 //  lstExitCalls.Add(exitCall);
 //end;
-//function TEleProgFrame.ObligatoryExit: TxpExitCall;
+//function TEleProgFrame.ObligatoryExit: TExitCall;
 //{Devuelve la referencia de una llamada a exit(), dentro de código obligatorio del Body.
 //Esto ayuda a saber si ya el usuario incluyó la salida dentro del código y no es necesario
 //agregar un RETURN al final.
@@ -1678,7 +1661,7 @@ end;
 //Según la documentación, el exit() en código obligatorio, solo debe estar al final del
 //código del procedimiento. Si estuviera antes, dejaría código "no-ejecutable".}
 //var
-//  exitCall: TxpExitCall;
+//  exitCall: TExitCall;
 //begin
 //  if lstExitCalls.Count = 0 then exit(nil);  //No incluye exit()
 //  for exitCall in lstExitCalls do begin
@@ -1700,14 +1683,14 @@ constructor TEleProgFrame.Create;
 begin
   inherited Create;
   idClass := eleProgFrame;
-  //lstExitCalls:= TxpExitCalls.Create(true);
+  //lstExitCalls:= TExitCalls.Create(true);
 end;
 destructor TEleProgFrame.Destroy;
 begin
   //lstExitCalls.Destroy;
   inherited Destroy;
 end;
-{ TxpEleCon }
+{ TEleConsDec }
 constructor TEleConsDec.Create;
 begin
   inherited;
@@ -1814,7 +1797,7 @@ begin
     exit(consNitm.value^.ValInt)
   end;
 end;
-{ TxpEleType }
+{ TEleTypeDec }
 function TEleTypeDec.IsByteSize: boolean;
 {Indica si el tipo, tiene 1 byte de tamaño}
 begin
@@ -1876,15 +1859,15 @@ begin
   internalTypes.Destroy;
   inherited;
 end;
-{ TxpEleProg }
+{ TEleProg }
 constructor TEleProg.Create;
 begin
   inherited;
   idClass := eleProg;
   Parent := nil;  //la raiz no tiene padre
 end;
-{ TxpEleFunBase }
-function TEleFunBase.SameParamsType(const funpars: TxpParFuncArray): boolean;
+{ TEleFunBase }
+function TEleFunBase.SameParamsType(const funpars: TParamFuncArray): boolean;
 {Compara los parámetros de la función con una lista de parámetros. Si tienen el mismo
 número de parámetros y el mismo tipo, devuelve TRUE.}
 var
@@ -1924,18 +1907,18 @@ begin
   if length(tmp)>0 then tmp := copy(tmp,1,length(tmp)-2);
   Result := '('+tmp+')';
 end;
-{ TxpEleFunDec }
+{ TEleFunDec }
 constructor TEleFunDec.Create;
 begin
   inherited Create;
   idClass := eleFuncDec;
 end;
-{ TxpEleFun }
+{ TEleFun }
 procedure TEleFun.SetElementsUnused;
 {Marca todos sus elementos con "nCalled = 0". Se usa cuando se determina que una función
 no es usada.}
 var
-  elem: TxpElement;
+  elem: TAstElement;
 begin
   if elements = nil then exit;  //No tiene
   //Marca sus elementos, como no llamados
@@ -1955,7 +1938,7 @@ end;
 function TEleFun.nLocalVars: integer;
 {Returns the numbers of local variables for this function.}
 var
-  elem : TxpElement;
+  elem : TAstElement;
 begin
   Result := 0;
   for elem in elements do begin
@@ -1974,7 +1957,7 @@ function TEleFun.IsTerminal2: boolean;
 - No llama a otras funciones o las funciones a las que llama no tienen variables locales.
 Donde "Variables" locales, se refiere también a parámetros del procedimiento.}
 var
-  called   : TxpElement;
+  called   : TAstElement;
   nCallesFuncWithLocals: Integer;
 begin
   if nLocalVars = 0 then exit(false);
@@ -2017,12 +2000,12 @@ destructor TEleFun.Destroy;
 begin
   inherited Destroy;
 end;
-{ TxpEleUnit }
+{ TEleUnit }
 procedure TEleUnit.ReadInterfaceElements;
 {Actualiza la lista "InterfaceElements", con los elementos accesibles desde la
 sección INTERFACE. De esta forma se facilita la exploración de elementos públicos.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   InterfaceElements.Clear;
   if elements = nil then exit;
@@ -2037,14 +2020,14 @@ constructor TEleUnit.Create;
 begin
   inherited;
   idClass:=eleUnit;
-  InterfaceElements:= TxpElements.Create(false);
+  InterfaceElements:= TAstElements.Create(false);
 end;
 destructor TEleUnit.Destroy;
 begin
   InterfaceElements.Destroy;
   inherited Destroy;
 end;
-{ TxpEleBody }
+{ TEleBody }
 constructor TEleBody.Create;
 begin
   inherited;
@@ -2054,7 +2037,7 @@ destructor TEleBody.Destroy;
 begin
   inherited Destroy;
 end;
-{ TxpEleFinal }
+{ TEleFinal }
 constructor TEleFinal.Create;
 begin
   inherited Create;

@@ -10,9 +10,14 @@ uses
 type  //MIR base class
   //MIR Element type
   TMirType = (
-     mtyAssign      //Assignment
-    ,mtyVarDec      //Var declaration
-    ,mtyFunCall     //Function call
+    //Declarations
+     mtyVarDec      //Variable declaration
+    ,mtyFunDec      //Function declaration
+    //Instructions
+    ,mtyAsgnSim     //Assignment from simple operand
+    ,mtyAsgnFun     //Assignment from function
+    ,mtyFunCall     //Procedure or Function call
+    ,mtyIfJump      //Conditional jump
     );
 
   { TMirElement }
@@ -23,10 +28,10 @@ type  //MIR base class
     text   : String;  //Label to show
   end;
 
-type  //MIR elements
+type  //MIR declarations
   { TMirVarDec }
   TMirVarDec = Class(TMirElement)
-    vardec: TEleVarDec;  //Target variable or declared variable.
+    vardec: TEleVarDec;  //AST Declared variable.
   public  //Campos para guardar las direcciones físicas asignadas en RAM.
     allocated: boolean;   //Activated when variable is allocated (RAM or register).
     storage  : TStorage;  //Depend on adicPar.hasAdic.
@@ -41,29 +46,50 @@ type  //MIR elements
   public
     constructor Create; virtual;
   end;
+  TMirVarDecs = specialize TFPGObjectList<TMirVarDec>;
 
+  { TMirFunDec }
+  TMirFunDec = Class(TMirElement)
+    pars     : TMirVarDecs;  //Reference to paramenters
+    funcName : TEleFun;      //AST function
+    instructions: TMirElements;   //Instruction list.
+    constructor Create; virtual;
+    destructor Destroy; override;
+  end;
+
+type  //MIR elements
   TMirOperand = object
-    opType: TopType;        //Operand type (otVariab, otConst, otFunct) like AST elements.
-    varDec: TMirVarDec;     //Reference to var declaration, when it's variable. Otherwise it' will be NIL.
+    opType: TopType;         //Operand type (otVariab, otConst, otFunct) like AST elements.
+    varDec: TMirVarDec;      //Reference to var declaration, when it's variable. Otherwise it' will be NIL.
     astOperand: TEleExpress; //Ref. to AST element. Should be used only for error location.
   end;
 
-  { TMirAssign }
-  TMirAssign = Class(TMirElement)
-    mirAssType: (mat1op,  //One operand in the right side.
-                 mat2op); //Two operands in the right side.
-    opDest: TMirOperand;  //Target variable or declared variable.
-    opSrc1: TMirOperand;  //Source operand.
-    opSrc2: TMirOperand;  //Source operand.
+  TMirFunction = object
+    //opType: TopType;         //Operand type (otVariab, otConst, otFunct) like AST elements.
+    funDec: TMirFunDec;      //Reference to function declaration, when it's accesible.
+    astOperand: TEleExpress; //Ref. to AST element. Should be used only for error location.
+  end;
+
+  { TMirAsgnSim }
+  TMirAsgnSim = Class(TMirElement)
+    opDest: TMirOperand;         //Target variable.
+    opSrc : TMirOperand;         //Source operand.
     constructor Create; virtual;
   end;
 
-  { TMirFunction }
-  TMirFunction = Class(TMirElement)
-    funcName: TEleFun;  //Target variable or declared variable.
-    instructions: TMirElements;     //Instruction list.
+  { TMirAsgnFun }
+  TMirAsgnFun = Class(TMirElement)
+    opDest: TMirOperand;          //Target variable.
+    func  : TMirFunction;         //Source function.
+    pars  : array of TMirOperand; //Parameters.
     constructor Create; virtual;
-    destructor Destroy; override;
+  end;
+
+  { TMirFunCall }
+  TMirFunCall = Class(TMirElement)
+    func  : TMirFunction;         //Function called.
+    pars  : array of TMirOperand; //Parameter list.
+    constructor Create; virtual;
   end;
 
 type  //Main Container
@@ -71,13 +97,14 @@ type  //Main Container
   TMirList = class
     mirElements: TMirElements;
   public  //Adding elements
-    function AddVarDeclar(fdest: TMirFunction; varDec0: TEleVarDec): TMirVarDec;
-    procedure AddAssign(fdest: TMirFunction; Op1, Op2: TEleExpress);
-    procedure AddAssign(fdest: TMirFunction; Op1, Op2, Op3: TEleExpress);
-    function AddSysNormalFunction(funcName0: TEleFun): TMirFunction;
-    function AddUsrNormalFunction(funcName0: TEleFun): TMirFunction;
+    function AddVarDec(fdest: TMirFunDec; varDec0: TEleVarDec): TMirVarDec;
+    function AddFunDecSNF(funcName0: TEleFun): TMirFunDec;
+    function AddFunDecUNF(funcName0: TEleFun): TMirFunDec;
+    procedure AddAssignSim(fdest: TMirFunDec; Op1, Op2: TEleExpress);
+    procedure AddAssignFun(fdest: TMirFunDec; Op1, Op2: TEleExpress);
+    procedure AddFunCall(fdest: TMirFunDec; Op1: TEleExpress);
   public  //Reading from AST
-    procedure ConvertBody(cntFunct: TMirFunction; sntBlock: TEleCodeCont);
+    procedure ConvertBody(cntFunct: TMirFunDec; sntBlock: TEleCodeCont);
   public  //Initialization
     procedure Clear;
     constructor Create; virtual;
@@ -85,7 +112,7 @@ type  //Main Container
   end;
 
 implementation
-
+{ TMirVarDec }
 function TMirVarDec.addrL: word;
 {Dirección absoluta de la variable de menor pero, cuando es de tipo WORD.}
 begin
@@ -125,30 +152,40 @@ function TMirVarDec.stoStr: string;
 begin
   WriteStr(Result, storage);
 end;
-
-{ TMirVarDec }
 constructor TMirVarDec.Create;
 begin
   mirType := mtyVarDec;
 end;
-{ TMirAssign }
-constructor TMirAssign.Create;
+{ TMirFunDec }
+constructor TMirFunDec.Create;
 begin
-  mirType := mtyAssign;
-end;
-{ TMirFunction }
-constructor TMirFunction.Create;
-begin
-  mirType := mtyFunCall;
+  mirType := mtyFunDec;
+  pars:= TMirVarDecs.Create(false);
   instructions:= TMirElements.Create(true);
 end;
-destructor TMirFunction.Destroy;
+destructor TMirFunDec.Destroy;
 begin
   instructions.Destroy;
+  pars.Destroy;
   inherited Destroy;
 end;
+{ TMirAsgnSim }
+constructor TMirAsgnSim.Create;
+begin
+  mirType := mtyAsgnSim;
+end;
+{ TMirAsgnFun }
+constructor TMirAsgnFun.Create;
+begin
+  mirType := mtyAsgnFun;
+end;
+{ TMirFunCall }
+constructor TMirFunCall.Create;
+begin
+  mirType := mtyFunCall;
+end;
 { TMirList }
-function TMirList.AddVarDeclar(fdest: TMirFunction; varDec0: TEleVarDec): TMirVarDec;
+function TMirList.AddVarDec(fdest: TMirFunDec; varDec0: TEleVarDec): TMirVarDec;
 {Add a Variable  declaration}
 begin
   Result := TMirVarDec.Create;
@@ -157,8 +194,22 @@ begin
   if fdest = nil then mirElements.Add(Result)
   else fdest.instructions.Add(Result)
 end;
-procedure SetOperandFromASTExpress(const AstOper: TEleExpress;
-                                   out MirOper: TMirOperand);
+function TMirList.AddFunDecSNF(funcName0: TEleFun): TMirFunDec;
+begin
+  Result := TMirFunDec.Create;
+  Result.text := funcName0.name;
+  Result.funcName := funcName0;
+  mirElements.Add(Result);
+end;
+function TMirList.AddFunDecUNF(funcName0: TEleFun): TMirFunDec;
+begin
+  Result := TMirFunDec.Create;
+  Result.text := funcName0.name;
+  Result.funcName := funcName0;
+  mirElements.Add(Result);
+end;
+procedure GetMIROperandFromASTExpress(out MirOper: TMirOperand;
+                                      const AstOper: TEleExpress);
 {Read data from a TEleExpress and set a TMirOperand}
 begin
   MirOper.opType := AstOper.opType;  //Must be set
@@ -168,70 +219,78 @@ begin
   end else if AstOper.opType = otVariab then begin
      MirOper.varDec := TMirVarDec(AstOper.rvar.mirVarDec);  //Must be set
      MirOper.astOperand := AstOper;
-  end else if AstOper.opType = otFunct then begin
-     MirOper.varDec := nil;
-     MirOper.astOperand := AstOper;
+  end else begin
+    MirOper.varDec := nil;
+    MirOper.astOperand := nil;
   end;
 end;
-procedure TMirList.AddAssign(fdest: TMirFunction;
+procedure GetMIRFunctionFromASTExpress(out MirFunc: TMirFunction;
+                                      const AstOper: TEleExpress);
+{Read data from a TEleExpress and set a TMirFunction}
+begin
+  //MirFunc.opType := AstOper.opType;  //Must be set
+  if AstOper.opType = otFunct then begin
+    MirFunc.funDec := nil;
+    MirFunc.astOperand := AstOper;
+  end else begin
+    MirFunc.funDec := nil;
+    MirFunc.astOperand := nil;
+  end;
+end;
+procedure TMirList.AddAssignSim(fdest: TMirFunDec;
     Op1,       //Target variable
     Op2: TEleExpress);  //Source expression
 {Add element to the MIR container.}
 var
-  assigElem: TMirAssign;
+  assigElem: TMirAsgnSim;
 begin
   //Set destination
   if Op1.opType <> otVariab then exit;
-  assigElem:= TMirAssign.Create;
+  assigElem:= TMirAsgnSim.Create;
   {$IFDEF DEBUGMODE}  //Only needed to display MIR
   assigElem.text := Op1.name + ':=' + Op2.name;
   {$ENDIF}
-  SetOperandFromASTExpress(Op1, assigElem.opDest);
+  GetMIROperandFromASTExpress(assigElem.opDest, Op1);
   //Set right operand
-  SetOperandFromASTExpress(Op2, assigElem.opSrc1);
-  assigElem.mirAssType := mat1op;  //One operand at right.
+  GetMIROperandFromASTExpress(assigElem.opSrc, Op2);
   //Add to list
   if fdest = nil then mirElements.Add(assigElem)
   else fdest.instructions.Add(assigElem)
 end;
-procedure TMirList.AddAssign(fdest: TMirFunction;
-    Op1,       //Target variable
-    Op2, Op3: TEleExpress);  //Source operands
+procedure TMirList.AddAssignFun(fdest: TMirFunDec; Op1, Op2: TEleExpress);  //Source operands
 {Add element to the MIR container.}
 var
-  assigElem: TMirAssign;
+  assigElem: TMirAsgnFun;
+  astPar: TAstElement;
+  i: Integer;
 begin
   //Set destination
   if Op1.opType <> otVariab then exit;
-  assigElem:= TMirAssign.Create;
+  assigElem:= TMirAsgnFun.Create;
   {$IFDEF DEBUGMODE}  //Only needed to display MIR
-  assigElem.text := Op1.name + ':=' + Op2.name + '' + Op3.name;
+  assigElem.text := Op1.name + ':=' + Op2.name;
   {$ENDIF}
-  SetOperandFromASTExpress(Op1, assigElem.opDest);
-  //Set right operands
-  SetOperandFromASTExpress(Op2, assigElem.opSrc1);
-  SetOperandFromASTExpress(Op3, assigElem.opSrc2);
-  assigElem.mirAssType := mat2op; //We have 2 operands
+  GetMIROperandFromASTExpress(assigElem.opDest, Op1);
+  //Set function operand
+  GetMIRFunctionFromASTExpress(assigElem.func, Op2);
+  //Set parameters
+  SetLength(assigElem.pars, Op2.elements.count);
+  i := 0;
+  for astPar in Op2.elements do begin
+    GetMIROperandFromASTExpress(assigElem.pars[i], TEleExpress(astPar));
+    inc(i);
+  end;
+
   //Add to list
   if fdest = nil then mirElements.Add(assigElem)
   else fdest.instructions.Add(assigElem)
 end;
-function TMirList.AddSysNormalFunction(funcName0: TEleFun): TMirFunction;
+procedure TMirList.AddFunCall(fdest: TMirFunDec; Op1: TEleExpress);
 begin
-  Result := TMirFunction.Create;
-  Result.text := funcName0.name;
-  Result.funcName := funcName0;
-  mirElements.Add(Result);
-end;
-function TMirList.AddUsrNormalFunction(funcName0: TEleFun): TMirFunction;
-begin
-  Result := TMirFunction.Create;
-  Result.text := funcName0.name;
-  Result.funcName := funcName0;
-  mirElements.Add(Result);
+
 end;
 //Reading from AST
-procedure TMirList.ConvertBody(cntFunct: TMirFunction; sntBlock: TEleCodeCont);
+procedure TMirList.ConvertBody(cntFunct: TMirFunDec; sntBlock: TEleCodeCont);
 {Convert a ASTBody to instructions in MIR representation.
 Parameters:
   cntFunct  -> The function where MIR will be created, or the main program. This will
@@ -239,7 +298,7 @@ Parameters:
   sntBlock  -> Block of code where are the sentences to need be prepared. It's the
                same of "cntFunct" except when "block" is nested like in a condiitonal.
 }
-{  function MoveParamToAssign(curContainer: TxpElement; Op: TEleExpress;
+{  function MoveParamToAssign(curContainer: TAstElement; Op: TEleExpress;
                              parvar: TEleVarDec): TEleExpress;
   {Mueve el nodo especificado "Op", que representa a un parámetro de la función, a una
   nueva instruccion de asignación (que es creada al inicio del bloque "curContainer") y
@@ -281,15 +340,15 @@ Parameters:
 
     exit(_setaux);
   end;
-  function SplitProcCall(curContainer: TxpElement; expMethod: TEleExpress): boolean; forward;
-}  function SplitSet(curContainer: TxpElement; setMethod: TxpElement): boolean;
+  function SplitProcCall(curContainer: TAstElement; expMethod: TEleExpress): boolean; forward;
+}  function SplitSet(curContainer: TAstElement; setMethod: TAstElement): boolean;
   {Process a set sentence. If a set expression has more than three operands
   it's splitted adding one or more aditional set sentences, at the beggining of
   "curContainer".
   If at least one new set sentence is added, returns TRUE.}
   var
-    Op2, parExp, new_set, Op1, idx: TEleExpress;
-    par: TxpElement;
+    Op2, parExp, new_set, Op1, idx, par1, par2: TEleExpress;
+    par: TAstElement;
     nParams: Integer;
   begin
     Result := false;
@@ -299,9 +358,9 @@ Parameters:
     //Split expressions in second operand of assignment.
     Op2 := TEleExpress(setMethod.elements[1]);  //Takes assignment source.
     if (Op2.opType = otVariab) then begin       //x := var1
-      AddAssign(cntFunct, Op1, Op2);
+      AddAssignSim(cntFunct, Op1, Op2);
     end else if (Op2.opType = otConst) then begin //x := CONS1
-      AddAssign(cntFunct, Op1, Op2);
+      AddAssignSim(cntFunct, Op1, Op2);
     end else if (Op2.opType = otFunct) then begin
       //Op2 is a function: 2 or more operands
       if Op2.rfun.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
@@ -323,9 +382,15 @@ Parameters:
         otherwise we will move them to a separate assignment}
         nParams := Op2.elements.Count;  //Parameters quantity
         if nParams = 1 then begin   //x := func(1); or x := a++;
-          AddAssign(cntFunct, Op1, Op2);
+          AddAssignSim(cntFunct, Op1, Op2);
+          par1 := TEleExpress(Op2.elements[0]);
         end else if nParams = 2 then begin
+          par1 := TEleExpress(Op2.elements[0]);
+          par2 := TEleExpress(Op2.elements[1]);
+          if par1.opType = otFunct then begin
 
+          end;
+          AddAssignFun(cntFunct, Op1, Op2);
         end else begin  //3 or more paremeters? No Supported
 //          for par in Op2.elements do begin
 //            parExp := TEleExpress(par);
@@ -340,13 +405,13 @@ Parameters:
       end;
     end;
   end;
-{  function SplitExpress(curContainer: TxpElement; expMethod: TEleExpress): boolean;
+{  function SplitExpress(curContainer: TAstElement; expMethod: TEleExpress): boolean;
   {Verify if an expression has more than three operands. If so then
   it's splitted adding one or more set sentences.
   If at least one new set sentence is added, returns TRUE.}
   var
     parExp, new_set: TEleExpress;
-    par: TxpElement;
+    par: TAstElement;
   begin
     Result := false;
     if (expMethod.opType = otFunct) then begin  //Neither variables nor constants.
@@ -369,14 +434,14 @@ Parameters:
       end;
     end;
   end;}
-//  function SplitProcCall(curContainer: TxpElement; expMethod: TEleExpress): boolean;
+//  function SplitProcCall(curContainer: TAstElement; expMethod: TEleExpress): boolean;
 //  {Split a procedure (not INLINE) call instruction, inserting an assignment instruction
 //  for each parameter.}
 //  var
 //    parExp, new_set: TEleExpress;
 //    funcBase: TEleFunBase;
 //    ipar: Integer;
-//    par: TxpParFunc;
+//    par: TParamFunc;
 //  begin
 //    Result := false;
 //    if expMethod.opType <> otFunct then exit;   //Not a fucntion call
@@ -398,7 +463,7 @@ Parameters:
 
 var
   sen: TEleSentence;
-  eleSen, _set, ele, _proc: TxpElement;
+  eleSen, _set, ele, _proc: TAstElement;
   _exp, Op1, Op2, val1, val2: TEleExpress;
   _blk, _blk0: TEleCodeCont;
 begin

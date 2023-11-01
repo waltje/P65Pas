@@ -16,7 +16,7 @@ type
 
   //Primary location for elements
   { TODO : ¿Debe estar aquí? Formalmente esta clasific. pertenece al nivel de elementos. }
-  TxpEleLocation = (
+  TElemLocation = (
                 locMain,       //En el programa principal.
                 locInterface,  //En INTERFACE de una unidad.
                 locImplement   //En IMPLEMENTATION de una unidad.

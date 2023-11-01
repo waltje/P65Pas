@@ -23,7 +23,7 @@ type
     procedure GoToDeclaration;
     procedure KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   private  //Completado de código
-    procedure cxpTreeElemsFindElement(elem: TxpElement);
+    procedure cxpTreeElemsFindElement(elem: TAstElement);
     procedure AddListUnits(OpEve: TFaOpenEvent);
     procedure CopyListItems(OpEve, OpEveSrc: TFaOpenEvent);
     procedure FieldsComplet(ident: string; opEve: TFaOpenEvent; tokPos: TSrcPos);
@@ -91,7 +91,7 @@ var
   lex: TSynFacilComplet2;
   callPos: TSrcPos;
   ed: TSynEditor;
-  ele: TxpElement;
+  ele: TAstElement;
   filPath: string;
   dlin: SizeInt;
 begin
@@ -181,7 +181,7 @@ begin
   end;
 end;
 //Completado de código
-procedure TCodeTool.cxpTreeElemsFindElement(elem: TxpElement);
+procedure TCodeTool.cxpTreeElemsFindElement(elem: TAstElement);
 var
   xfun: TEleFun;
 begin
@@ -235,7 +235,7 @@ procedure TCodeTool.FieldsComplet(ident: string; opEve: TFaOpenEvent;
 {Se solicita lista de campos de un identificador, para el completado de código en el
 editor.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
   xVar: TEleVarDec;
 begin
   opEve.ClearItems;  //limpia primero
@@ -332,7 +332,7 @@ MAIN, se está haciendo, todavía, con el archivo XML.}
 var
   curPos: TPoint;
   ed: TSynEditor;
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   ed := fraEdit.ActiveEditor;
   if ed = nil then exit;

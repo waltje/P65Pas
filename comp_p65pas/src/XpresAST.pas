@@ -14,23 +14,21 @@ uses
   Classes, SysUtils, fgl, LazLogger, XpresElemP65, LexPas;
 type  //Abstract Syntax Tree
   {Represent the state of a search with FindFirst-FindNext}
-  TxpFindState = object
+  TAstFindState = object
     Name  : string;
-    Node  : TxpElement;
+    Node  : TAstElement;
     Idx   : integer;
     inUnit: boolean;
   end;
 
-  { TXpTreeElements }
-  {Árbol de elementos. Se usa para el árbol de sintaxis y de directivas. Aquí es
-  donde se guardará la referencia a todas los elementos (variables, constantes, ..)
-  creados.
-  Este árbol se usa también como para resolver nombres de elementos, en una estructura
-  en arbol.}
-  TXpTreeElements = class
+  { TAstTree }
+  {Árbol de sintaxis abstracta. Aquí es donde se guardará la referencia a todas los
+  elementos sintácticos creados (variables, constantes, ..).
+  Se usa también como para resolver nombres de elementos.}
+  TAstTree = class
   public  //Tree definition/events
     main      : TEleProg;  //Root node
-    curNode   : TxpElement;  //Reference to current node
+    curNode   : TAstElement;  //Reference to current node
     curCodCont: TEleCodeCont;  {Reference to current code container, used to solve
                                  identifiers. It could be:
                                    - Body opened.
@@ -39,7 +37,7 @@ type  //Abstract Syntax Tree
                                    - Type declaration opened.
                                   Note this don't consider TEleBlock elements.
                                    }
-    OnFindElement: procedure(elem: TxpElement) of object;  //Evento de búsqueda
+    OnFindElement: procedure(elem: TAstElement) of object;  //Evento de búsqueda
   public  //Containers
     AllCons  : TEleConsDecs;
     AllVars  : TEleVarDecs;
@@ -49,36 +47,36 @@ type  //Abstract Syntax Tree
     procedure Clear;
     procedure RefreshAllUnits;
   public  //Filling the tree
-    procedure AddElement(elem: TxpElement; position: integer = - 1);
-    procedure AddElementAndOpen(elem: TxpElement; position: integer = - 1);
-    procedure AddElementToParent(elem: TxpElement; AtBegin: boolean);
-    procedure OpenElement(elem: TxpElement);
+    procedure AddElement(elem: TAstElement; position: integer = - 1);
+    procedure AddElementAndOpen(elem: TAstElement; position: integer = - 1);
+    procedure AddElementToParent(elem: TAstElement; AtBegin: boolean);
+    procedure OpenElement(elem: TAstElement);
     procedure CloseElement;
     procedure DeleteTypeNode(typNode: TEleTypeDec);
-    procedure ChangeParentTo(newparent, elem: TxpElement; position: integer = - 1);
-    procedure InsertParentTo(newparent, elem: TxpElement);
+    procedure ChangeParentTo(newparent, elem: TAstElement; position: integer = - 1);
+    procedure InsertParentTo(newparent, elem: TAstElement);
     function AddBodyAndOpen(srcPos: TSrcPos): TEleBody;
     function AddConsDecAndOpen(srcPos: TSrcPos; cname: string;
       ctype: TEleTypeDec): TEleConsDec;
     function AddVarDecAndOpen(srcPos: TSrcPos; vname: string;
       vtype: TEleTypeDec): TEleVarDec;
     function AddTypeDecAndOpen(srcPos: TSrcPos; tname: string; tsize: word;
-      catType: TxpCatType; group: TTypeGroup; position: integer = - 1
+      catType: TCatType; group: TTypeGroup; position: integer = - 1
   ): TEleTypeDec;
     function AddElementBlockAndOpen(srcPos: TSrcPos; position: integer = - 1
       ): TEleBlock;
-    function AddElementSentAndOpen(srcPos: TSrcPos; sntType: TxpSentence): TEleSentence;
+    function AddElementSentAndOpen(srcPos: TSrcPos; sntType: TSentenceType): TEleSentence;
   public  //Element resolution (FindFirst() - FindNext())
-    curFind: TxpFindState; //State variables for searching
-    function FindFirst(const name: string): TxpElement;
-    function FindNext: TxpElement;
+    curFind: TAstFindState; //State variables for searching
+    function FindFirst(const name: string): TAstElement;
+    function FindNext: TAstElement;
     function FindNextFuncName: TEleFunBase;
     function FindFirstType(const name: string): TEleTypeDec;
     function FindNextType: TEleTypeDec;
     function FindVar(varName: string): TEleVarDec;
     function FindType(typName: string): TEleTypeDec;
   public  //Searching/Identify
-    function LastNode: TxpElement;
+    function LastNode: TAstElement;
     function BodyNode: TEleBody;
     function CurNodeName: string;
     function ExistsArrayType(itemType: TEleTypeDec; nEle: integer;
@@ -86,10 +84,10 @@ type  //Abstract Syntax Tree
     function ExistsPointerType(ptrType: TEleTypeDec;
                              out typFound: TEleTypeDec): boolean;
     function GetElementBodyAt(posXY: TPoint): TEleBody;
-    function GetElementAt(posXY: TPoint): TxpElement;
-    function GetElementCalledAt(const srcPos: TSrcPos): TxpElement;
-    function GetELementDeclaredAt(const srcPos: TSrcPos): TxpElement;
-    function FunctionExistInCur(funName: string; const pars: TxpParFuncArray
+    function GetElementAt(posXY: TPoint): TAstElement;
+    function GetElementCalledAt(const srcPos: TSrcPos): TAstElement;
+    function GetELementDeclaredAt(const srcPos: TSrcPos): TAstElement;
+    function FunctionExistInCur(funName: string; const pars: TParamFuncArray
       ): boolean;
   public  //Debug
     procedure print();  //Show the AST
@@ -100,8 +98,8 @@ type  //Abstract Syntax Tree
 
 implementation
 
-{ TXpTreeElements }
-procedure TXpTreeElements.Clear;
+{ TAstTree }
+procedure TAstTree.Clear;
 begin
   main.elements.Clear;  //esto debe hacer un borrado recursivo
   main.Clear;
@@ -115,9 +113,9 @@ begin
   AllFuncs.Clear;
   AllTypes.Clear;
 end;
-procedure TXpTreeElements.RefreshAllUnits;
+procedure TAstTree.RefreshAllUnits;
 var
-  ele : TxpElement;
+  ele : TAstElement;
 begin
   AllUnits.Clear;   //por si estaba llena
   for ele in main.elements do begin
@@ -127,7 +125,7 @@ begin
   end;
 end;
 //Filling the tree
-procedure TXpTreeElements.AddElement(elem: TxpElement; position: integer = -1);
+procedure TAstTree.AddElement(elem: TAstElement; position: integer = -1);
 {Add a new element to the current node. Commonly elements are added at the end of the
 list unless "position" is specified.
 This is the unique entry point to add elements to the Syntax Tree.}
@@ -148,7 +146,7 @@ begin
   //No se incluye el código de RefreshAllUnits() porque solo trabaja en el "main".
   end;
 end;
-procedure TXpTreeElements.AddElementAndOpen(elem: TxpElement; position: integer = -1);
+procedure TAstTree.AddElementAndOpen(elem: TAstElement; position: integer = -1);
 {Add an element and change the current node to this new node. Open an element means
 that all new nodes added, will be children of this node (The current node).
 To open an element is useful when it will contain other nodes, like a function body.}
@@ -157,25 +155,25 @@ begin
   tengan todos sus parámetros agregados, porque pueden ser sobrecargados.}
   AddElement(elem, position);
   //Genera otro espacio de nombres
-  if elem.elements = nil then elem.elements := TxpElements.Create(true);  //Create its list becuase it will contain other nodes.
+  if elem.elements = nil then elem.elements := TAstElements.Create(true);  //Create its list becuase it will contain other nodes.
   curNode := elem;  //Set new Current node.
 end;
-procedure TXpTreeElements.AddElementToParent(elem: TxpElement; AtBegin: boolean);
+procedure TAstTree.AddElementToParent(elem: TAstElement; AtBegin: boolean);
 {Add element to the parent of the current element.}
 var
-  tmp: TxpElement;
+  tmp: TAstElement;
 begin
   tmp := curNode;  //Save currente node
   curNode := curNode.Parent;  //Set to parent
   if AtBegin then AddElement(elem, 0) else AddElement(elem);
   curNode := tmp;  //Restore position
 end;
-procedure TXpTreeElements.OpenElement(elem: TxpElement);
+procedure TAstTree.OpenElement(elem: TAstElement);
 {Accede al espacio de nombres del elemento indicado.}
 begin
   curNode := elem;  //empieza a trabajar en esta lista
 end;
-procedure TXpTreeElements.CloseElement;
+procedure TAstTree.CloseElement;
 {Close the current node and returns to the parent node.}
 var
   isCodeContainer: Boolean;
@@ -188,10 +186,10 @@ begin
     curCodCont := curNode.codCont;  //Restore last value
   end;
 end;
-procedure TXpTreeElements.DeleteTypeNode(typNode: TEleTypeDec);
+procedure TAstTree.DeleteTypeNode(typNode: TEleTypeDec);
 {Delete a node of type "TEleTypeDec"}
 var
-  parent: TxpElement;
+  parent: TAstElement;
 begin
   parent := typNode.Parent;
   //parent.elements.Remove(typNode);
@@ -201,22 +199,22 @@ begin
   { WARNING: This procedure is incomplete. It doesn't delete the possible "callers"
    existing in "typNode".}
 end;
-procedure TXpTreeElements.ChangeParentTo(newparent, elem: TxpElement; position: integer = -1);
+procedure TAstTree.ChangeParentTo(newparent, elem: TAstElement; position: integer = -1);
 {Change the current parent of "elem". The element "elem" is reinserted in the
 new parent "newparent" at the position "position".}
 var
-  parent: TxpElement;
+  parent: TAstElement;
 begin
   parent := elem.Parent;
   parent.elements.Extract(elem);  //Doesn't free "ele". No need to update lists (AllCons, AllVars, ...) because it will be reinserted.
   newparent.AddElement(elem, position);  //Reinsert here
 end;
-procedure TXpTreeElements.InsertParentTo(newparent, elem: TxpElement);
+procedure TAstTree.InsertParentTo(newparent, elem: TAstElement);
 {Set "newparent" as parent to the element "elem" making it descend one level.
 Doesn't change current node.}
 var
   i: Integer;
-  parent, tmp: TxpElement;
+  parent, tmp: TAstElement;
 begin
   parent := elem.Parent;
   i := parent.elements.IndexOf(elem);  //Position of "elem"
@@ -224,17 +222,17 @@ begin
 
   //Insert in "newparent" in the same position of "elem".
 //  parent.AddElement(newparent, i);
-//  if newparent.elements = nil then newparent.elements := TxpElements.Create(true);
+//  if newparent.elements = nil then newparent.elements := TAstElements.Create(true);
   tmp := curNode;  //Save currente node
   curNode := parent;  //Set to parent
   AddElement(newparent, i);  //Use AddElement() to mantain the unique point for Adding nodes.
-  if newparent.elements = nil then newparent.elements := TxpElements.Create(true);
+  if newparent.elements = nil then newparent.elements := TAstElements.Create(true);
   curNode := tmp;  //Restore position
 
   //Reinsert "elem" as child of newparent
   newparent.AddElement(elem, 0);
 end;
-function TXpTreeElements.AddBodyAndOpen(srcPos: TSrcPos): TEleBody;
+function TAstTree.AddBodyAndOpen(srcPos: TSrcPos): TEleBody;
 {Similar to AddElementAndOpen() but create and open a Body node. Returns the Body created.
 This function must be used always when creating a Body, because it mantains updated the
 variable "curBody" that is used to resolve names.}
@@ -246,7 +244,7 @@ begin
   AddElementAndOpen(Result);
   curCodCont := Result;  //Update current Code container
 end;
-function TXpTreeElements.AddConsDecAndOpen(srcPos: TSrcPos; cname: string;
+function TAstTree.AddConsDecAndOpen(srcPos: TSrcPos; cname: string;
                          ctype: TEleTypeDec): TEleConsDec;
 begin
   Result := TEleConsDec.Create;
@@ -257,7 +255,7 @@ begin
   AddElementAndOpen(Result);
   curCodCont := Result;  //Update current Code container
 end;
-function TXpTreeElements.AddVarDecAndOpen(srcPos: TSrcPos; vname: string;
+function TAstTree.AddVarDecAndOpen(srcPos: TSrcPos; vname: string;
                          vtype: TEleTypeDec): TEleVarDec;
 begin
   Result := TEleVarDec.Create;
@@ -268,8 +266,8 @@ begin
   AddElementAndOpen(Result);
   curCodCont := Result;  //Update current Code container
 end;
-function TXpTreeElements.AddTypeDecAndOpen(srcPos: TSrcPos; tname: string;
-  tsize: word; catType: TxpCatType; group: TTypeGroup;
+function TAstTree.AddTypeDecAndOpen(srcPos: TSrcPos; tname: string;
+  tsize: word; catType: TCatType; group: TTypeGroup;
   position: integer = -1): TEleTypeDec;
 begin
   Result := TEleTypeDec.Create;
@@ -282,14 +280,14 @@ begin
   AddElementAndOpen(Result, position);  //Open type
   curCodCont := Result;  //Update current Code container
 end;
-function TXpTreeElements.AddElementBlockAndOpen(srcPos: TSrcPos; position: integer = -1): TEleBlock;
+function TAstTree.AddElementBlockAndOpen(srcPos: TSrcPos; position: integer = -1): TEleBlock;
 begin
   Result := TEleBlock.Create;
   Result.name := 'block';
   Result.srcDec := srcPos;
   AddElementAndOpen(Result, position);
 end;
-function TXpTreeElements.AddElementSentAndOpen(srcPos: TSrcPos; sntType: TxpSentence): TEleSentence;
+function TAstTree.AddElementSentAndOpen(srcPos: TSrcPos; sntType: TSentenceType): TEleSentence;
 begin
   Result := TEleSentence.Create;
   //Result.name := 'sent';
@@ -298,13 +296,13 @@ begin
   AddElementAndOpen(Result);
 end;
 //Element resolution
-function TXpTreeElements.FindNext: TxpElement;
+function TAstTree.FindNext: TAstElement;
 {Realiza una búsqueda recursiva en el nodo "curFindNode", a partir de la posición,
 "curFindIdx", hacia "atrás", el elemento con nombre "curFindName". También implementa
 la búsqueda en unidades.
 Esta rutina es quien define la resolución de nombres (alcance) en el lenguaje.}
 var
-  elem: TxpElement;
+  elem: TAstElement;
 begin
   //debugln(' Explorando nivel: [%s] desde pos: %d de %s', [curFind.name, curFind.Idx - 1, curFind.Node.name]);
   repeat
@@ -354,7 +352,7 @@ begin
     end;
   until false;
 end;
-function TXpTreeElements.FindFirst(const name: string): TxpElement;
+function TAstTree.FindFirst(const name: string): TAstElement;
 {Routine to resolve an identifier inside the SyntaxTree, following the scope rules for
 identifiers of the Pascal syntax (first the current space and then the parents spaces).
 If found returns the reference to the element otherwise returns NIL.
@@ -386,13 +384,13 @@ begin
     Result := FindNext;
   end;
 end;
-function TXpTreeElements.FindNextFuncName: TEleFunBase;
+function TAstTree.FindNextFuncName: TEleFunBase;
 {Scans recursively toward root, in the syntax tree, until find a function element with
 the same name provided in a previous call to FindFirst.
 Must be called after calling FindFirst() with the name of the function.
 If not found, returns NIL.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   repeat
     ele := FindNext;
@@ -401,10 +399,10 @@ begin
   if ele = nil then exit(nil);  //No encontró
   Result := TEleFunBase(ele);   //devuelve como función
 end;
-function TXpTreeElements.FindFirstType(const name: string): TEleTypeDec;
+function TAstTree.FindFirstType(const name: string): TEleTypeDec;
 {Starts the search for a element type in the syntax Tree.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   ele := FindFirst(name);
   while (ele<>nil) and (ele.idClass <> eleTypeDec) do begin
@@ -412,11 +410,11 @@ begin
   end;
   if ele = nil then exit(nil) else exit( TEleTypeDec(ele) );
 end;
-function TXpTreeElements.FindNextType: TEleTypeDec;
+function TAstTree.FindNextType: TEleTypeDec;
 {Scan recursively toward root, in the syntax tree, until find a type element.
 Must be called after calling FindFirst(). If not found, returns NIL.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   repeat
     ele := FindNext;
@@ -425,10 +423,10 @@ begin
   if ele = nil then exit(nil);  //No encontró
   Result := TEleTypeDec(ele);   //devuelve como función
 end;
-function TXpTreeElements.FindVar(varName: string): TEleVarDec;
+function TAstTree.FindVar(varName: string): TEleVarDec;
 {Busca una variable con el nombre indicado en el espacio de nombres actual}
 var
-  ele : TxpElement;
+  ele : TAstElement;
   uName: String;
 begin
   uName := upcase(varName);
@@ -440,10 +438,10 @@ begin
   end;
   exit(nil);
 end;
-function TXpTreeElements.FindType(typName: string): TEleTypeDec;
+function TAstTree.FindType(typName: string): TEleTypeDec;
 {Find a type, by name, in the current element of the Synyax Tree.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   ele := FindFirst(typName);
 //  while (ele<>nil) and (ele.idClass <> eleType) do begin
@@ -453,22 +451,22 @@ begin
   if ele.idClass = eleTypeDec then exit( TEleTypeDec(ele) ) else exit(nil);
 end;
 //Searching/Identification
-function TXpTreeElements.LastNode: TxpElement;
+function TAstTree.LastNode: TAstElement;
 {Devuelve una referencia al último nodo de "main"}
 begin
   Result := main.LastNode;
 end;
-function TXpTreeElements.BodyNode: TEleBody;
+function TAstTree.BodyNode: TEleBody;
 {Devuelve la referencia al cuerpo principal del programa.}
 begin
   Result := main.BodyNode;
 end;
-function TXpTreeElements.CurNodeName: string;
+function TAstTree.CurNodeName: string;
 {Devuelve el nombre del nodo actual}
 begin
   Result := curNode.name;
 end;
-function TXpTreeElements.ExistsArrayType(itemType: TEleTypeDec; nEle: integer;
+function TAstTree.ExistsArrayType(itemType: TEleTypeDec; nEle: integer;
   out typFound: TEleTypeDec): boolean;
 {Finds an array type declaration, accesible from the current position in the syntax tree.
 If found, returns TRUE and the type reference in "typFound".}
@@ -480,7 +478,7 @@ begin
   //Verify result
   Result := typFound <> nil;
 end;
-function TXpTreeElements.ExistsPointerType(ptrType: TEleTypeDec; out
+function TAstTree.ExistsPointerType(ptrType: TEleTypeDec; out
   typFound: TEleTypeDec): boolean;
 {Finds a pointer type declaration, accesible from the current position in the syntax tree.
 If found, returns TRUE and the type reference in "typFound".}
@@ -492,16 +490,16 @@ begin
   //Verify result
   Result := typFound <> nil;
 end;
-function TXpTreeElements.GetElementBodyAt(posXY: TPoint): TEleBody;
+function TAstTree.GetElementBodyAt(posXY: TPoint): TEleBody;
 {Busca en el árbol de sintaxis, dentro del nodo principal, y sus nodos hijos, en qué
 cuerpo (nodo Body) se encuentra la coordenada del cursor "posXY".
 Si no encuentra, devuelve NIL.}
 var
   res: TEleBody;
 
-  procedure ExploreForBody(nod: TxpElement);
+  procedure ExploreForBody(nod: TAstElement);
   var
-    ele : TxpElement;
+    ele : TAstElement;
   begin
     if nod.elements<>nil then begin
       //Explora a todos sus elementos
@@ -526,15 +524,15 @@ begin
   ExploreForBody(main);
   Result := res;
 end;
-function TXpTreeElements.GetElementAt(posXY: TPoint): TxpElement;
+function TAstTree.GetElementAt(posXY: TPoint): TAstElement;
 {Busca en el árbol de sintaxis, en qué nodo Body se encuentra la coordenada del
 cursor "posXY". Si no encuentra, devuelve NIL.}
 var
   res: TEleBody;
 
-  procedure ExploreFor(nod: TxpElement);
+  procedure ExploreFor(nod: TAstElement);
   var
-    ele : TxpElement;
+    ele : TAstElement;
   begin
     if nod.elements<>nil then begin
       //Explora a todos sus elementos
@@ -559,15 +557,15 @@ begin
   ExploreFor(main);
   Result := res;
 end;
-function TXpTreeElements.GetElementCalledAt(const srcPos: TSrcPos): TxpElement;
+function TAstTree.GetElementCalledAt(const srcPos: TSrcPos): TAstElement;
 {Explora los elementos, para ver si alguno es llamado desde la posición indicada.
 Si no lo encuentra, devueleve NIL.}
 var
-  res: TxpElement;
+  res: TAstElement;
 
-  procedure ExploreForCall(nod: TxpElement);
+  procedure ExploreForCall(nod: TAstElement);
   var
-    ele : TxpElement;
+    ele : TAstElement;
   begin
     if nod.elements<>nil then begin
       //Explora a todos sus elementos
@@ -589,14 +587,14 @@ begin
   ExploreForCall(main);
   Result := res;
 end;
-function TXpTreeElements.GetELementDeclaredAt(const srcPos: TSrcPos): TxpElement;
+function TAstTree.GetELementDeclaredAt(const srcPos: TSrcPos): TAstElement;
 {Explora los elementos, para ver si alguno es declarado en la posición indicada.}
 var
-  res: TxpElement;
+  res: TAstElement;
 
-  procedure ExploreForDec(nod: TxpElement);
+  procedure ExploreForDec(nod: TAstElement);
   var
-    ele : TxpElement;
+    ele : TAstElement;
   begin
     if nod.elements<>nil then begin
       //Explora a todos sus elementos
@@ -618,13 +616,13 @@ begin
   ExploreForDec(main);
   Result := res;
 end;
-function TXpTreeElements.FunctionExistInCur(funName: string;
-  const pars: TxpParFuncArray): boolean;
+function TAstTree.FunctionExistInCur(funName: string;
+  const pars: TParamFuncArray): boolean;
 {Indica si la función definida por el nombre y parámetros, existe en el nodo actual.
 La búsqueda se hace bajo la consideración de que dos funciones son iguales si tiene el
 mismo nombre y los mismos tipos de parámetros.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
   uname: String;
   funbas: TEleFunBase;
 begin
@@ -647,11 +645,11 @@ begin
   exit(false);
 end;
 //Debug
-procedure TXpTreeElements.print();
+procedure TAstTree.print();
 {Función de ayuda a la depuración;}
-  procedure printNode(nod: TxpElement; level: integer);
+  procedure printNode(nod: TAstElement; level: integer);
   var
-    ele: TxpElement;
+    ele: TAstElement;
     expr: TEleExpress;
   begin
     for ele in nod.elements do begin
@@ -665,7 +663,7 @@ procedure TXpTreeElements.print();
     end;
   end;
 var
-  ele : TxpElement;
+  ele : TAstElement;
 begin
   debugln('AST('+IntToStr(main.elements.Count)+') = ');
   for ele in main.elements do begin
@@ -675,11 +673,11 @@ begin
   debugln('');
 end;
 //Constructor y destructor
-constructor TXpTreeElements.Create;
+constructor TAstTree.Create;
 begin
   main:= TEleProg.Create;  //No debería
   main.name := 'Main';
-  main.elements := TxpElements.Create(true); //Debe tener lista
+  main.elements := TAstElements.Create(true); //Debe tener lista
   AllCons  := TEleConsDecs.Create(false);  //Crea lista
   AllVars  := TEleVarDecs.Create(false);   //Crea lista
   AllFuncs := TEleFuns.Create(false);      //Crea lista
@@ -687,7 +685,7 @@ begin
   AllTypes := TEleTypeDecs.Create(false);  //Crea lista
   curNode := main;                         //Empieza con el nodo principal como espacio de nombres actual
 end;
-destructor TXpTreeElements.Destroy;
+destructor TAstTree.Destroy;
 begin
   main.Destroy;
   AllTypes.Destroy;

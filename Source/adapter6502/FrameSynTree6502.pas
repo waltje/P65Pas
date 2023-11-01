@@ -51,11 +51,11 @@ type
     FBackColor: TColor;
     FTextColor: TColor;
     cpx       : TCompilerBase;   //Reference to lexer
-    syntaxTree: TXpTreeElements; //Reference to SyntaxTree
+    syntaxTree: TAstTree; //Reference to SyntaxTree
     frmElemProp: TfrmElemProperty;  //Formulario de propiedades
-    function AddNodeTo(nodParent: TTreeNode; elem: TxpElement): TTreeNode;
-    procedure frmElemPropertyExplore(elem: TxpElement);
-    procedure RefreshByDeclar(nodMain: TTreeNode; curEle: TxpElement);
+    function AddNodeTo(nodParent: TTreeNode; elem: TAstElement): TTreeNode;
+    procedure frmElemPropertyExplore(elem: TAstElement);
+    procedure RefreshByDeclar(nodMain: TTreeNode; curEle: TAstElement);
     function SelectedIsMain: boolean;
     function SelectedIsElement: boolean;
     procedure TreeView1AdvancedCustomDrawItem(Sender: TCustomTreeView;
@@ -89,7 +89,7 @@ var
   TIT_OTHER: String;
 
 { TfraSynxTree6502 }
-function TfraSynxTree6502.AddNodeTo(nodParent: TTreeNode; elem: TxpElement): TTreeNode;
+function TfraSynxTree6502.AddNodeTo(nodParent: TTreeNode; elem: TAstElement): TTreeNode;
 {Agrega un elemento a un noco.}
 var
   nod: TTreeNode;
@@ -167,13 +167,13 @@ begin
   nod.Data := elem;
   Result := nod;
 end;
-procedure TfraSynxTree6502.frmElemPropertyExplore(elem: TxpElement);
+procedure TfraSynxTree6502.frmElemPropertyExplore(elem: TAstElement);
 begin
   acGenGoToExecute(self);
 end;
-procedure TfraSynxTree6502.RefreshByDeclar(nodMain: TTreeNode; curEle: TxpElement);
+procedure TfraSynxTree6502.RefreshByDeclar(nodMain: TTreeNode; curEle: TAstElement);
 var
-  elem: TxpElement;
+  elem: TAstElement;
   nodElem: TTreeNode;
 begin
   //Agrega elementos
@@ -257,7 +257,7 @@ begin
 end;
 procedure TfraSynxTree6502.TreeView1SelectionChanged(Sender: TObject);
 var
-  elem: TxpElement;
+  elem: TAstElement;
 begin
   if not frmElemProp.Visible then exit;
   if TreeView1.Selected = nil then exit;
@@ -265,7 +265,7 @@ begin
     frmElemProp.Clear;
     exit;
   end;
-  elem := TxpElement(TreeView1.Selected.Data);
+  elem := TAstElement(TreeView1.Selected.Data);
   frmElemProp.Exec(cpx, elem);
 end;
 procedure TfraSynxTree6502.TreeView1DblClick(Sender: TObject);
@@ -279,11 +279,11 @@ begin
 end;
 procedure TfraSynxTree6502.acGenGoToExecute(Sender: TObject);
 var
-  elem: TxpElement;
+  elem: TAstElement;
   fileName: String;
 begin
   if SelectedIsElement then begin
-    elem := TxpElement(TreeView1.Selected.Data);
+    elem := TAstElement(TreeView1.Selected.Data);
     fileName := cpx.ctxFile(elem.srcDec);
     if OnLocateElemen <> nil  then OnLocateElemen(fileName, elem.srcDec.row, elem.srcDec.col);
   end;
@@ -298,11 +298,11 @@ begin
 end;
 procedure TfraSynxTree6502.acGenPropExecute(Sender: TObject);
 var
-  elem: TxpElement;
+  elem: TAstElement;
 begin
   if TreeView1.Selected = nil then exit;
   if TreeView1.Selected.Data = nil then exit;
-  elem := TxpElement(TreeView1.Selected.Data);
+  elem := TAstElement(TreeView1.Selected.Data);
   frmElemProp.Exec(cpx, elem);
   frmElemProp.Show;
 end;

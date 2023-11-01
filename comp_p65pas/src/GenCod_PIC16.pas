@@ -60,12 +60,12 @@ type
       snfDelayMs:     TEleFun;
       snfBytDivByt8:  TEleFun;
       snfWrdDivWrd16: TEleFun;
-      procedure AddLocVar(var pars: TxpParFuncArray; parName: string;
-        const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TxpAdicDeclar);
-      procedure AddParam(var pars: TxpParFuncArray; parName: string;
-        const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TxpAdicDeclar);
+      procedure AddLocVar(var pars: TParamFuncArray; parName: string;
+        const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
+      procedure AddParam(var pars: TParamFuncArray; parName: string;
+        const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
       function AddSysNormalFunction(name: string; retType: TEleTypeDec;
-        const srcPos: TSrcPos; var pars: TxpParFuncArray; codSys: TCodSysNormal
+        const srcPos: TSrcPos; var pars: TParamFuncArray; codSys: TCodSysNormal
   ): TEleFun;
       procedure arrayHigh(fun: TEleExpress);
       procedure arrayLength(fun: TEleExpress);
@@ -105,7 +105,7 @@ type
         parType2: TEleTypeDec; retType: TEleTypeDec; pCompile: TCodSysInline
   ): TEleFun;
       function AddSysInlineFunction(name: string; retType: TEleTypeDec;
-        const srcPos: TSrcPos; const pars: TxpParFuncArray;
+        const srcPos: TSrcPos; const pars: TParamFuncArray;
   codSys: TCodSysInline): TEleFun;
       procedure DefineArray(etyp: TEleTypeDec);
       procedure DefinePointer(etyp: TEleTypeDec);
@@ -222,7 +222,7 @@ type
       procedure CreateSystemElements;
     public
       procedure DefCompiler;
-//      procedure DefinePointer(etyp: TxpEleType);
+//      procedure DefinePointer(etyp: TEleTypeDec);
     end;
 
   procedure SetLanguage;
@@ -7863,8 +7863,8 @@ begin
   OnExprEnd   := @expr_End;
 
 end;
-procedure TGenCod.AddParam(var pars: TxpParFuncArray; parName: string; const srcPos: TSrcPos;
-                   typ0: TEleTypeDec; adicDec: TxpAdicDeclar);
+procedure TGenCod.AddParam(var pars: TParamFuncArray; parName: string; const srcPos: TSrcPos;
+                   typ0: TEleTypeDec; adicDec: TAdicDeclar);
 //Create a new parameter to the function.
 var
   n: Integer;
@@ -7879,8 +7879,8 @@ begin
   pars[n].adicVar.hasInit := false;
   pars[n].isLocVar := false;
 end;
-procedure TGenCod.AddLocVar(var pars: TxpParFuncArray; parName: string; const srcPos: TSrcPos;
-                   typ0: TEleTypeDec; adicDec: TxpAdicDeclar);
+procedure TGenCod.AddLocVar(var pars: TParamFuncArray; parName: string; const srcPos: TSrcPos;
+                   typ0: TEleTypeDec; adicDec: TAdicDeclar);
 //Create a new parameter to the function.
 var
   n: Integer;
@@ -7896,7 +7896,7 @@ begin
   pars[n].isLocVar := true;
 end;
 function TGenCod.AddSysInlineFunction(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
-               const pars: TxpParFuncArray; codSys: TCodSysInline): TEleFun;
+               const pars: TParamFuncArray; codSys: TCodSysInline): TEleFun;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
    pars   -> Array of parameters for the function to be created.
@@ -7904,7 +7904,7 @@ function TGenCod.AddSysInlineFunction(name: string; retType: TEleTypeDec; const 
 }
 var
    fundec: TEleFunDec;
-   tmpLoc: TxpEleLocation;
+   tmpLoc: TElemLocation;
 begin
   tmpLoc := curLocation;     //Save current location. We are going to change it.
   //Add declaration
@@ -7927,14 +7927,14 @@ begin
   curLocation := tmpLoc;   //Restore current location
 end;
 function TGenCod.AddSysNormalFunction(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
-               var pars: TxpParFuncArray; codSys: TCodSysNormal): TEleFun;
+               var pars: TParamFuncArray; codSys: TCodSysNormal): TEleFun;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
    pars   -> Array of parameters for the function to be created.
    codSys -> SIF Routine or the the routine to generate de code.
 }
 var
-  local_vars: TxpParFuncArray;   //Array for local variables
+  local_vars: TParamFuncArray;   //Array for local variables
 
   procedure extract_local_vars;
   //Extract the local variables from "pars" to "local_vars"
@@ -7957,7 +7957,7 @@ var
   end;
 var
    fundec: TEleFunDec;
-   tmpLoc: TxpEleLocation;
+   tmpLoc: TElemLocation;
    locvar: TEleVarDec;
    i: Integer;
 begin
@@ -8007,7 +8007,7 @@ function TGenCod.CreateInUOMethod(
  the AST.
  Returns the reference to the function created.}
 var
-  pars: TxpParFuncArray;     //Array of parameters
+  pars: TParamFuncArray;     //Array of parameters
 begin
   setlength(pars, 0);        //Reset parameters
   AddParam(pars, 'b', srcPosNull, clsType, decNone);  //Base object
@@ -8034,7 +8034,7 @@ function TGenCod.CreateInBOMethod(
  the AST. If "opr" is null, just create a method without operator.
  Returns the reference to the function created.}
 var
-  pars: TxpParFuncArray;     //Array of parameters
+  pars: TParamFuncArray;     //Array of parameters
 begin
   setlength(pars, 0);        //Reset parameters
   AddParam(pars, 'b', srcPosNull, clsType, decNone);  //Base object
@@ -8061,7 +8061,7 @@ function TGenCod.CreateInTerMethod(clsType: TEleTypeDec;
  the AST.
  Returns the reference to the function created.}
 var
-  pars: TxpParFuncArray;     //Array of parameters
+  pars: TParamFuncArray;     //Array of parameters
 begin
   setlength(pars, 0);        //Reset parameters
   AddParam(pars, 'b', srcPosNull, clsType, decNone);  //Base object
@@ -8310,7 +8310,7 @@ end;
 procedure TGenCod.CreateTripletOperations;
 var
   f: TEleFun;
-  pars: TxpParFuncArray;  //Array of parameters
+  pars: TParamFuncArray;  //Array of parameters
 begin
   TreeElems.OpenElement(typTriplet);
   f:=CreateInBOMethod(typTriplet, ':=', '_set', typTriplet, typNull, @SIF_triplet_asig_triplet);
@@ -8340,7 +8340,7 @@ procedure TGenCod.CreateSystemElements;
 {Initialize the system elements. Must be executed just one time when compiling.}
 var
   uni: TEleUnit;
-  pars: TxpParFuncArray;  //Array of parameters
+  pars: TParamFuncArray;  //Array of parameters
   f, sifDelayMs, sifWord: TEleFun;
 begin
   //////// Funciones del sistema ////////////

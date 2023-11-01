@@ -35,7 +35,7 @@ type
     posFlash: Integer;
     lastASMLabel: string;  //Name of a label when the last instruction was a LABEL.
     procedure GenCodeASMline(asmInst: TEleAsmInstr);
-    function GenCodeCodition(cond: TxpElement): TEleExpress;
+    function GenCodeCodition(cond: TAstElement): TEleExpress;
     procedure GenCodeExit(sen: TEleSentence);
     procedure GenCodLoadToA(fun: TEleExpress);  { TODO : ¿Se necesita? No se usa }
     procedure GenCodLoadToX(fun: TEleExpress);  { TODO : ¿Se necesita? No se usa }
@@ -84,7 +84,7 @@ type
     procedure CreateVarsAndPars;
     procedure codRTS(isInterrupt: boolean);
     procedure GenCodeExpr(eleExp: TEleExpress);
-    procedure GenCodeSentences(sentList: TxpElements);
+    procedure GenCodeSentences(sentList: TAstElements);
 //    procedure GenCodeBody(body: TEleBody);
     procedure GenCodeBlock(block: TEleBlock);
   protected  //Memory managing routines for variables
@@ -1790,7 +1790,7 @@ end;
 procedure TGenCodBas.CreateVarsAndPars;
 {Create in RAM, local variables and parameters for functions.}
 var
-  elem   : TxpElement;
+  elem   : TAstElement;
   xvar   : TEleVarDec;
   fun    : TEleFun;
 begin
@@ -1858,7 +1858,7 @@ Nodes otConst, must be evaluated.}
 var
   funcBase: TEleFunBase;
   AddrUndef, regsUsed: boolean;
-  ele: TxpElement;
+  ele: TAstElement;
   parExpr: TEleExpress;
 begin
   if eleExp.opType = otFunct then begin
@@ -1928,7 +1928,7 @@ begin
 end;
 procedure TGenCodBas.GenCodeASMline(asmInst: TEleAsmInstr);
 {Generate code for an ASM instruction (element TEleAsmInstr).}
-  function ReadOperandValueRef(paramRef: TxpElement): integer;
+  function ReadOperandValueRef(paramRef: TAstElement): integer;
   {Read the value of a Operand when it's a reference to an element.}
   var
     xvar: TEleVarDec;
@@ -1974,7 +1974,7 @@ procedure TGenCodBas.GenCodeASMline(asmInst: TEleAsmInstr);
       exit;
     end;
   end;
-  procedure ApplyOperations(operRef: TxpElement; const operations: TAsmOperations; var operVal: integer);
+  procedure ApplyOperations(operRef: TAstElement; const operations: TAsmOperations; var operVal: integer);
   {Apply the operations to the parameter "operVal"}
   var
     i: Integer;
@@ -2015,7 +2015,7 @@ procedure TGenCodBas.GenCodeASMline(asmInst: TEleAsmInstr);
   "operRef" returns the reference to the element when operand is an "element operand",
   otherwise returns NIL.}
   var
-    elemRef: TxpElement;
+    elemRef: TAstElement;
   begin
     if (asmOperand.Val = -1) then begin
       //There is an expresion for the operand. We need to solve the parameter.
@@ -2115,7 +2115,7 @@ begin
     exit;
   end;
 end;
-function TGenCodBas.GenCodeCodition(cond: TxpElement): TEleExpress;
+function TGenCodBas.GenCodeCodition(cond: TAstElement): TEleExpress;
 {Generates code for a condition Block.
 Returns the boolean expression inside the condition.
 If an Error occurs returns FALSE.
@@ -2123,7 +2123,7 @@ There should be at least one Expression in "cond" and "cond" must be a TEleCondi
 element. We won't check here.}
 var
   expSet: TEleExpress;
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   //The last expression should be the boolean condition
   Result := TEleExpress(cond.elements[cond.elements.Count-1]);
@@ -2233,7 +2233,7 @@ begin
 end;
 procedure TGenCodBas.GenCodeFOR(sen: TEleSentence);
 var
-  assign, ele: TxpElement;
+  assign, ele: TAstElement;
   expSet, expBool: TEleExpress;
   lbl1: Word;
   lbl2: TIfInfo;
@@ -2312,8 +2312,8 @@ procedure TGenCodBas.GenCodeExit(sen: TEleSentence);
 var
   curFun: TEleFun;
   par, expSet: TEleExpress;
-  parentNod: TxpElement;
-  ele: TxpElement;
+  parentNod: TAstElement;
+  ele: TAstElement;
 begin
   //TreeElems.curNode, debe ser de tipo "Body".
   if sen.elements.Count=0 then begin
@@ -2341,10 +2341,10 @@ begin
     _RTS;
   end;
 end;
-procedure TGenCodBas.GenCodeSentences(sentList: TxpElements);
+procedure TGenCodBas.GenCodeSentences(sentList: TAstElements);
 {Generate code for a list of sentences.}
 var
-  eleSen, ele: TxpElement;
+  eleSen, ele: TAstElement;
   sen: TEleSentence;
   expSet: TEleExpress;
   inst: TEleAsmInstr;

@@ -72,7 +72,7 @@ begin
     exit;
   end;
   nod := TreeView1.Items.AddChild(nodParent, elem.text);
-  if elem.mirType = mtyAssign then begin
+  if elem.mirType in [mtyAsgnSim, mtyAsgnFun] then begin
 //    nod.Text :=   '<Assign>';
     nod.ImageIndex := 12;
     nod.SelectedIndex := 12;
@@ -120,14 +120,14 @@ procedure TfraMIR6502.RefreshByDeclar(nodMain: TTreeNode; elems: TMirElements);
 var
   elem: TMirElement;
   nodElem: TTreeNode;
-  mirFunct: TMirFunction;
+  mirFunct: TMirFunDec;
 begin
   //Agrega elementos
   if elems = nil then exit;
   for elem in elems do begin
       nodElem := AddNodeTo(nodMain, elem);
       if elem.mirType = mtyFunCall then begin  //Tiene nodos hijos
-         mirFunct:= TMirFunction(elem);
+         mirFunct:= TMirFunDec(elem);
          RefreshByDeclar(nodElem, mirFunct.instructions);  //Llamada recursiva
       //   nodElem.Expanded := true;
       end;

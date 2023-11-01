@@ -32,12 +32,12 @@ type
     procedure BitBtn2Click(Sender: TObject);
     procedure butDetailsClick(Sender: TObject);
   private
-    elem: TxpElement;
-    procedure SetCalledInfo(elem0: TxpElement);
+    elem: TAstElement;
+    procedure SetCalledInfo(elem0: TAstElement);
   public
-    OnExplore: procedure(elem0: TxpElement) of object;
+    OnExplore: procedure(elem0: TAstElement) of object;
     procedure Clear;
-    procedure Exec(cIn: TContexts; elem0: TxpElement);
+    procedure Exec(cIn: TContexts; elem0: TAstElement);
   end;
 
 var
@@ -64,7 +64,7 @@ begin
 end;
 procedure TfrmElemProperty.butDetailsClick(Sender: TObject);
 var
-  call: TxpEleCaller;
+  call: TAstEleCaller;
   tmp, callerStr: String;
 begin
   //Detalla las llamadas hechas al elemento
@@ -81,7 +81,7 @@ begin
   MsgBox(tmp);
 end;
 
-procedure TfrmElemProperty.SetCalledInfo(elem0: TxpElement);
+procedure TfrmElemProperty.SetCalledInfo(elem0: TAstElement);
 {Agrega información, sobre las llamadas que se hacen a un elemento }
 var
   nCalled: Integer;
@@ -99,7 +99,7 @@ begin
     butDetails.Enabled := true;
   end;
 end;
-procedure TfrmElemProperty.Exec(cIn: TContexts; elem0: TxpElement);
+procedure TfrmElemProperty.Exec(cIn: TContexts; elem0: TAstElement);
 var
   adicInformation, dirSolic, tmp, implem: String;
   xcon: TEleConsDec;

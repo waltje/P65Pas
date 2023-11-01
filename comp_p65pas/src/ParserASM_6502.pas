@@ -232,7 +232,7 @@ If not operand eas found error is generated and returns FALSE.}
     end;
   end;
 var
-  ele: TxpElement;
+  ele: TAstElement;
   xfun: TEleFun;
   xvar: TEleVarDec;
   xcon: TEleConsDec;

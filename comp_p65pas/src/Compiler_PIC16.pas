@@ -64,7 +64,7 @@ procedure TCompiler_PIC16.ConstantFoldExpr(eleExp: TEleExpress);
 Note the similarity of this method with GenCodeExpr().}
 var
   funcBase: TEleFunBase;
-  ele: TxpElement;
+  ele: TAstElement;
   parExpr: TEleExpress;
 begin
   if eleExp.opType = otFunct then begin
@@ -204,8 +204,8 @@ procedure TCompiler_PIC16.ConstantFolding;
   var
     expFun: TEleExpress;
     sen: TEleSentence;
-    eleSen: TxpElement;
-    ele: TxpElement;
+    eleSen: TAstElement;
+    ele: TAstElement;
     i: Integer;
   begin
     //Process body
@@ -295,7 +295,7 @@ procedure TCompiler_PIC16.ConstanPropagation;
   }
   var
     rightOp, Op: TEleExpress;
-    ele: TxpElement;
+    ele: TAstElement;
   begin
     //Search at the right expression
     Result := false;
@@ -327,7 +327,7 @@ procedure TCompiler_PIC16.ConstanPropagation;
   var
     assigExp, assigToDelete: TEleExpress;
     sen: TEleSentence;
-    eleSen, par: TxpElement;
+    eleSen, par: TAstElement;
     n, i: Integer;
     varDec, varDecToDelete: TEleVarDec;
     consVal: TConsValue;
@@ -405,7 +405,7 @@ Parameters:
   sntBlock  -> Block of code where are the sentences to need be prepared. It's the
                same of "container" except when "block" is nested like in a condiitonal.
 }
-  function MoveParamToAssign(curContainer: TxpElement; Op: TEleExpress;
+  function MoveParamToAssign(curContainer: TAstElement; Op: TEleExpress;
                              parvar: TEleVarDec): TEleExpress;
   {Mueve el nodo especificado "Op", que representa a un parámetro de la función, a una
   nueva instruccion de asignación (que es creada al inicio del bloque "curContainer") y
@@ -433,7 +433,7 @@ Parameters:
     //Add the new assigment before the main
     TreeElems.openElement(curContainer);
     TreeElems.AddElement(_setaux, 0);    //Add a new assigmente before
-    _setaux.elements := TxpElements.Create(true);  //Create list
+    _setaux.elements := TAstElements.Create(true);  //Create list
     TreeElems.openElement(_setaux);
 
     //Add first operand (variable) of the assignment.
@@ -447,15 +447,15 @@ Parameters:
 
     exit(_setaux);
   end;
-  function SplitProcCall(curContainer: TxpElement; expMethod: TEleExpress): boolean; forward;
-  function SplitSet(curContainer: TxpElement; setMethod: TxpElement): boolean;
+  function SplitProcCall(curContainer: TAstElement; expMethod: TEleExpress): boolean; forward;
+  function SplitSet(curContainer: TAstElement; setMethod: TAstElement): boolean;
   {Verify if a set expression has more than three operands. If so then
   it's splitted adding one or more aditional set sentences, at the beggining of
   "curContainer".
   If at least one new set sentence is added, returns TRUE.}
   var
     Op2, parExp, new_set, Op1, idx: TEleExpress;
-    par: TxpElement;
+    par: TAstElement;
   begin
     Result := false;
     if TEleExpress(setMethod).rfun.getset <> gsSetInSimple then exit;
@@ -492,13 +492,13 @@ Parameters:
       end;
     end;
   end;
-  function SplitExpress(curContainer: TxpElement; expMethod: TEleExpress): boolean;
+  function SplitExpress(curContainer: TAstElement; expMethod: TEleExpress): boolean;
   {Verify if an expression has more than three operands. If so then
   it's splitted adding one or more set sentences.
   If at least one new set sentence is added, returns TRUE.}
   var
     parExp, new_set: TEleExpress;
-    par: TxpElement;
+    par: TAstElement;
   begin
     Result := false;
     if (expMethod.opType = otFunct) then begin  //Neither variables nor constants.
@@ -521,14 +521,14 @@ Parameters:
       end;
     end;
   end;
-  function SplitProcCall(curContainer: TxpElement; expMethod: TEleExpress): boolean;
+  function SplitProcCall(curContainer: TAstElement; expMethod: TEleExpress): boolean;
   {Split a procedure (not INLINE) call instruction, inserting an assignment instruction
   for each parameter.}
   var
     parExp, new_set: TEleExpress;
     funcBase: TEleFunBase;
     ipar: Integer;
-    par: TxpParFunc;
+    par: TParamFunc;
   begin
     Result := false;
     if expMethod.opType <> otFunct then exit;   //Not a fucntion call
@@ -549,7 +549,7 @@ Parameters:
   end;
 var
   sen: TEleSentence;
-  eleSen, _set, ele, _proc: TxpElement;
+  eleSen, _set, ele, _proc: TAstElement;
   _exp, Op1, Op2, val1, val2: TEleExpress;
   _blk, _blk0: TEleCodeCont;
 begin
@@ -667,8 +667,8 @@ var
   fun : TEleFun;
   xvar: TEleVarDec;
   bod : TEleBody;
-  elem : TxpElement;
-  f: TMirFunction;
+  elem : TAstElement;
+  f: TMirFunDec;
   eVarDec: TEleVarDec;
 begin
   //Agrega variables globales
@@ -678,25 +678,25 @@ begin
     if (xvar.nCalled>0) or xvar.required then begin
       //Asigna una dirección válida para esta variable
 //debugln('  ubicando: ' + xvar.name);
-      mirCont.AddVarDeclar(nil, xvar);
+      mirCont.AddVarDec(nil, xvar);
     end;
   end;
 
   for fun in usedFuncs do begin
     if fun.callType = ctUsrNormal then begin
-      f := mirCont.AddUsrNormalFunction(fun);
+      f := mirCont.AddFunDecUNF(fun);
       for elem In fun.elements do begin
           if elem.idClass = eleVarDec then begin
             eVarDec := TEleVarDec(elem);  //Guarda referencia
             //Agrega al MIR y guarda referencia.
-            eVarDec.mirVarDec := mirCont.AddVarDeclar(f, eVarDec);
+            eVarDec.mirVarDec := mirCont.AddVarDec(f, eVarDec);
           end else if elem.idClass = eleBody then begin
             mirCont.ConvertBody(f, TEleBody(elem));
             //if HayError then exit;   //Puede haber error
           end;
       end;
     end else if fun.callType = ctSysNormal then begin
-      mirCont.AddSysNormalFunction(fun);
+      mirCont.AddFunDecSNF(fun);
       //System function doesn't have body.
     end;
   end;
@@ -870,7 +870,7 @@ var
   fun    : TEleFun;
   i      : Integer;
   bod    : TEleBody;
-  elem   : TxpElement;
+  elem   : TAstElement;
 begin
   if IsUnit then exit;
   //Verifica las constantes usadas. Solo en el nodo principal, para no sobrecargar mensajes.
@@ -1224,9 +1224,9 @@ var
   txt, OpCode, Times, state: String;
 
   fun: TEleFun;
-  caller : TxpEleCaller;
-  called : TxpElement;
-  //exitCall: TxpExitCall;
+  caller : TAstEleCaller;
+  called : TAstElement;
+  //exitCall: TExitCall;
 begin
   ////////////////////////////////////////////////////////////
   //////////// Reporte de uso de memeoria  ///////////

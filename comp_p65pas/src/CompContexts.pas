@@ -53,7 +53,7 @@ type
     procedure ShowContexts;
     procedure ShowCurContInformat;
   public    //Errors and warnings
-    curLocation: TxpEleLocation;   {Current location for scan. This tells the compiler
+    curLocation: TElemLocation;   {Current location for scan. This tells the compiler
                                    where it's scanning. It useful because some declarations
                                    have to interpret in different way according to the
                                    location.}

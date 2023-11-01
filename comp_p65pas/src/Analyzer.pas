@@ -24,9 +24,9 @@ type
     procedure AnalyzeIF;
     procedure AnalyzeREPEAT;
     procedure AnalyzeWHILE;
-    procedure MoveInternalTypes(node: TxpElement; declarSec: TxpElement;
+    procedure MoveInternalTypes(node: TAstElement; declarSec: TAstElement;
       declarPos: Integer);
-    procedure SetParameter(var funPar: TxpParFunc; const name: string;
+    procedure SetParameter(var funPar: TParamFunc; const name: string;
       const srcPos: TSrcPos; typ: TEleTypeDec; const adicVar: TAdicVarDec);
   protected
     function GetUnitDeclaration: boolean;
@@ -36,11 +36,11 @@ type
     procedure GetAdicVarDeclar(var varTyp: TEleTypeDec; out aditVar: TAdicVarDec;
       out mainTypCreated: TEleTypeDec);
     procedure ReadProcHeader(out procName: String; out retType: TEleTypeDec; out
-      srcPos: TSrcPos; var pars: TxpParFuncArray; out IsInterrupt,
+      srcPos: TSrcPos; var pars: TParamFuncArray; out IsInterrupt,
   IsForward: Boolean);
     procedure AnalyzeVarDeclar;
     procedure AnalyzeConstDeclar;
-    procedure AnalyzeTypeDeclar(elemLocat: TxpEleLocation);
+    procedure AnalyzeTypeDeclar(elemLocat: TElemLocation);
     function GetTypeDeclar(out decStyle: TTypDeclarStyle; out TypeCreated: boolean;
       location: TTypeLocat = tlCurrNode): TEleTypeDec;
     function GetTypeDeclarSimple(): TEleTypeDec;
@@ -50,14 +50,14 @@ type
     function GetCondition(out ex: TEleExpress; ConstBool: boolean = false): boolean;
     function OpenContextFrom(filePath: string): boolean;
     function AnalyzeStructBody: boolean;
-    function MoveNodeToAssign(cntBody: TEleCodeCont; curContainer: TxpElement;
+    function MoveNodeToAssign(cntBody: TEleCodeCont; curContainer: TAstElement;
                               Op: TEleExpress): TEleExpress;
     procedure AnalyzeSentence;
     procedure AnalyzeCurBlock;
     procedure AnalyzeProcDeclar(objContainer: TEleTypeDec);
-    procedure AnalyzeInlineDeclar(elemLocat: TxpEleLocation);
+    procedure AnalyzeInlineDeclar(elemLocat: TElemLocation);
     procedure AnalyzeUsesDeclaration;
-    procedure DoAnalyzeUnit(uni: TxpElement);
+    procedure DoAnalyzeUnit(uni: TAstElement);
     procedure DoAnalyzeProgram;
     procedure DoAnalyze;
   public
@@ -153,7 +153,7 @@ When no new types are created, "mainTypCreated" returns NIL.
 var
   init: TEleExpress;
   ntyp, typesCreated, indexNode: Integer;
-  parentNod, typDecElem: TxpElement;
+  parentNod, typDecElem: TAstElement;
   arrtyp: TEleTypeDec;
 begin
 
@@ -259,7 +259,7 @@ var
   xvar: TEleVarDec;
   n: integer;
   tokL: String;
-  ele: TxpElement;
+  ele: TAstElement;
   xcon: TEleConsDec;
   consTyp: TEleTypeDec;
   nItems: Int64;
@@ -489,7 +489,7 @@ begin
     exit;
   end;
 end;
-procedure TAnalyzer.SetParameter(var funPar: TxpParFunc;
+procedure TAnalyzer.SetParameter(var funPar: TParamFunc;
     const name: string; const srcPos: TSrcPos; typ: TEleTypeDec; const adicVar: TAdicVarDec);
 begin
   funPar.name  := name;
@@ -498,12 +498,12 @@ begin
   funPar.adicVar := adicVar;
 end;
 procedure TAnalyzer.ReadProcHeader(out procName: String; out retType: TEleTypeDec;
-  out srcPos: TSrcPos; var pars: TxpParFuncArray; out IsInterrupt, IsForward: Boolean);
+  out srcPos: TSrcPos; var pars: TParamFuncArray; out IsInterrupt, IsForward: Boolean);
 {Hace el procesamiento del encabezado de la declaración de una función/procedimiento.
 Devuelve la referencia al objeto TxpEleFun creado, en "fun".
 Conviene separar el procesamiento del enzabezado, para poder usar esta rutina, también,
 en el procesamiento de unidades.}
-  procedure ReadFunctionParams(var funPars: TxpParFuncArray);
+  procedure ReadFunctionParams(var funPars: TParamFuncArray);
   //Lee la declaración de parámetros de una función.
   const
     BLOCK_SIZE = 5;  //Tamaño de bloque.
@@ -662,7 +662,7 @@ ttdDeclar -> Crea un tipo nuevo con la definición del nuevo tipo especificado, 
              Creará un tipo nuevo con la definición: "array[0..5] of char".
              El tipo nuevo devuelto tiene nombre vacío y debe ser actualizado luego.
 
-Entre "decStyle" y el "catType" del tipo devuelto (Ver comentario de TxpCatType),
+Entre "decStyle" y el "catType" del tipo devuelto (Ver comentario de TCatType),
 debería quedar completamente especificada la declaración del tipo.
 
 "TypeCreated" indicates when a new Type instance was created in the AST (The main Type
@@ -887,7 +887,7 @@ If some problems happens, Error is generated and the NIL value is returned.
 var
   typName, tokL: String;
   typ, itemTyp, refType: TEleTypeDec;
-  ele: TxpElement;
+  ele: TAstElement;
   srcPos: TSrcPos;
 begin
   Result := nil;
@@ -976,7 +976,7 @@ declaración de nuevos tipos, como: ARRAY OF ...}
 var
   decStyle: TTypDeclarStyle;
   TypeCreated: boolean;
-  par: TxpElement;
+  par: TAstElement;
 begin
   if TreeElems.curCodCont=nil then TreeElems.curCodCont:=typByte; {Ver comentario de AnalyzeVarDeclar()}
   Result := GetTypeDeclar(decStyle, TypeCreated);  //lee tipo
@@ -1023,8 +1023,8 @@ begin
   end;
   exit(true);
 end;
-procedure TAnalyzer.AnalyzeTypeDeclar(elemLocat: TxpEleLocation);
-{Compila la sección de declaración de un tipo, y genera un elemento TxpEleType, en el
+procedure TAnalyzer.AnalyzeTypeDeclar(elemLocat: TElemLocation);
+{Compila la sección de declaración de un tipo, y genera un elemento TEleTypeDec, en el
 árbol de sintaxis:  TYPE sometype = <declaration>;
 }
 var
@@ -1234,14 +1234,14 @@ end;
 procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
 {Compila la declaración de procedimientos. Tanto procedimientos como funciones
  se manejan internamente como funciones.}
-  function FindProcInInterface(procName: string; const pars: TxpParFuncArray;
+  function FindProcInInterface(procName: string; const pars: TParamFuncArray;
                                const srcPos: TSrcPos): TEleFunDec;
   {Explore the current context to verify (and validate) the existence, in the INTERFACE
   section, of a function declared in the IMPLEMENTATION section.
   If found the function, returns the reference. Otherwise returns NIL.
   Also validate the duplicity in the same IMPLEMENTATION section.}
   var
-    ele : TxpElement;
+    ele : TAstElement;
     uname: String;
     fun: TEleFun;
     funInterface: TEleFunDec;
@@ -1290,7 +1290,7 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
     end;
     //Doesn't found.
   end;
-  function FindProcAsForwawd(procName: string; const pars: TxpParFuncArray;
+  function FindProcAsForwawd(procName: string; const pars: TParamFuncArray;
                                const srcPos: TSrcPos): TEleFunDec;
   {Explore the current context to verify (and validate) the existence of a functon
   declared as FORWARD, of any ohter function (No FORWARD).
@@ -1298,7 +1298,7 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
   Also validate the duplicity of the function.}
   var
     uname: String;
-    ele : TxpElement;
+    ele : TAstElement;
     fun: TEleFun;
     fundec: TEleFunDec;
   begin
@@ -1340,7 +1340,7 @@ var
   procName, tokL: String;
   retType: TEleTypeDec;
   srcPos: TSrcPos;
-  pars: TxpParFuncArray;
+  pars: TParamFuncArray;
   adicVar: TAdicVarDec;
 begin
   //Verifica si estamos dentro de una declaración de objeto.
@@ -1464,7 +1464,7 @@ begin
   if not CaptureTok(';') then exit;
   ProcComments;  //Quita espacios. Puede salir con error
 end;
-procedure TAnalyzer.AnalyzeInlineDeclar(elemLocat: TxpEleLocation);
+procedure TAnalyzer.AnalyzeInlineDeclar(elemLocat: TElemLocation);
 {Compila la declaración de procedimientos INLINE. Tanto procedimientos como funciones
  INLINE se manejan internamente como funciones.
  IsImplementation, se usa para cuando se está compilando en la sección IMPLEMENTATION.}
@@ -1668,7 +1668,7 @@ begin
   //Salió sin errores
   exit(true);
 end;
-function TAnalyzer.MoveNodeToAssign(cntBody: TEleCodeCont; curContainer: TxpElement; Op: TEleExpress): TEleExpress;
+function TAnalyzer.MoveNodeToAssign(cntBody: TEleCodeCont; curContainer: TAstElement; Op: TEleExpress): TEleExpress;
 {Mueve el nodo especificado "Op" a una nueva instruccion de asignación (que es creada
 al inicio del bloque "curContainer") y reemplaza el nodo faltante por una variable
 temporal. Esta variable temporal se crea en el contenedor "cntBody" y es la que se usa
@@ -1682,7 +1682,7 @@ var
   Op1aux, Op2aux: TEleExpress;
   funSet: TEleFunBase;
   OpPos: Integer;
-  OpParent: TxpElement;
+  OpParent: TAstElement;
 begin
   //Create a new variable in the declaration section of this sntBlock.
   _varaux := AddVarDecCC('', Op.typ, cntBody);  //Generate a unique name in this cntBody
@@ -1699,7 +1699,7 @@ begin
   //Add the new assigment before the main
   TreeElems.openElement(curContainer);
   TreeElems.AddElement(_setaux, 0);    //Add a new assigmente before
-  _setaux.elements := TxpElements.Create(true);  //Create list
+  _setaux.elements := TAstElements.Create(true);  //Create list
   TreeElems.openElement(_setaux);
 
   //Add first operand (variable) of the assignment.
@@ -2055,7 +2055,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
     _comp.name := opStr;
     exit(true);
   end;
-  procedure convertToPlusOne(opType: TEleTypeDec; _node: TxpElement);
+  procedure convertToPlusOne(opType: TEleTypeDec; _node: TAstElement);
   {Convert a node TEleExpress to an expression: "node+1" in the AST.
   Only work for the byte type.}
   var
@@ -2067,7 +2067,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
     TreeElems.curNode := _add;
     AddExpressionConstByte('1', 1, GetSrcPos);
   end;
-  procedure convertToMinusOne(opType: TEleTypeDec; _node: TxpElement);
+  procedure convertToMinusOne(opType: TEleTypeDec; _node: TAstElement);
   {Convert a node TEleExpress to an expression: "node+1" in the AST.
   Only work for the byte type.}
   var
@@ -2283,7 +2283,7 @@ procedure TAnalyzer.AnalyzeEXIT(exitSent: TEleSentence);
     exit(true);
   end;
 var
-  parentNod: TxpElement;
+  parentNod: TAstElement;
   func: TEleFun;
   oper: TEleExpress;
   prog: TEleProg;
@@ -2325,12 +2325,12 @@ begin
     func.RegisterExitCall(exitSent);
   end;
 end;
-procedure TAnalyzer.MoveInternalTypes(node: TxpElement;
-             declarSec: TxpElement; declarPos: Integer);
+procedure TAnalyzer.MoveInternalTypes(node: TAstElement;
+             declarSec: TAstElement; declarPos: Integer);
 {Explore all the types declared in "node" at any deep level and move it to
 the current declaartion section.}
 var
-  ele: TxpElement;
+  ele: TAstElement;
 begin
   if node.elements= nil then exit;
   for ele in node.elements do begin
@@ -2357,7 +2357,7 @@ procedure TAnalyzer.AnalyzeSentence;
  }
 var
   tokUp: String;
-  ele, declarSec: TxpElement;
+  ele, declarSec: TAstElement;
   ex: TEleExpress;
   declarPos: Integer;
   snt, exitSent: TEleSentence;
@@ -2592,10 +2592,10 @@ begin
     if not CaptureDelExpres then exit;
   end;
 end;
-procedure TAnalyzer.DoAnalyzeUnit(uni: TxpElement);
+procedure TAnalyzer.DoAnalyzeUnit(uni: TAstElement);
 {Realiza la compilación de una unidad}
 var
-  elem: TxpElement;
+  elem: TAstElement;
   fundec: TEleFunDec;
   tokL: String;
 begin
@@ -2736,7 +2736,7 @@ Input: The current context.
 Output: The AST.}
 var
   bod: TEleBody;
-  elem: TxpElement;
+  elem: TAstElement;
   fundec: TEleFunDec;
   tokL: String;
 begin
