@@ -8,7 +8,7 @@ unit ParserASM_6502;
 {$mode objfpc}{$H+}
 interface
 uses
-  Classes, SysUtils, fgl, LexPas, CompBase, P65C02utils, CompGlobals, XpresElemP65;
+  Classes, SysUtils, fgl, LexPas, CompBase, P65C02utils, CompGlobals, AstElemP65;
 type
   { TParserAsm_6502 }
   TParserAsm_6502 = class
@@ -233,7 +233,7 @@ If not operand eas found error is generated and returns FALSE.}
   end;
 var
   ele: TAstElement;
-  xfun: TEleFun;
+  xfun: TEleFunImp;
   xvar: TEleVarDec;
   xcon: TEleConsDec;
   positOper: char;
@@ -290,9 +290,9 @@ begin
       exit(true);
     end else begin
       //Se identifica un elemento del lenguaje
-      if ele.idClass = eleFunc then begin
+      if ele.idClass = eleFuncImp then begin
         //Es un identificador de función del árbol de sintaxis
-        xfun := TEleFun(ele);
+        xfun := TEleFunImp(ele);
         cpx.AddCallerToFromCurr(xfun);  //lleva la cuenta
         cpx.Next;  //Take variable name
         operand.Val := -1;        //Indicates to use "operRef"

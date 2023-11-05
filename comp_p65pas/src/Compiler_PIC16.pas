@@ -6,7 +6,7 @@ interface
 uses
   Classes, SysUtils, LazLogger,
   P65C02utils, CPUCore, CompBase, ParserDirec, GenCodBas_PIC16,
-  GenCod_PIC16, CompGlobals, XpresElemP65, ParserASM_6502, XpresMIR, StrUtils;
+  GenCod_PIC16, CompGlobals, AstElemP65, ParserASM_6502, MirList, StrUtils;
 type
   { TCompiler_PIC16 }
   TCompiler_PIC16 = class(TGenCod)
@@ -72,8 +72,8 @@ begin
     funcBase := eleExp.rfun;
     if funcBase.callType = ctSysInline then begin
       //Only INLINE functions can returns constants.
-      if funcBase.idClass = eleFunc then begin
-        //It's the implementation. No problem.
+      if funcBase.idClass = eleFuncDec then begin
+        //It's the declaration. No problem.
         //Process all parameters.
         for ele in eleExp.elements do begin
           parExpr := TEleExpress(ele);
@@ -97,10 +97,8 @@ begin
           eleExp.elements.Clear;  //Variables don't have childrens.
         end;
       end else begin
-        //Should be the declaration. Maybe it's already implemented, or maybe not.
-        //funcDec := TxpEleFunDec(funcBase);
-        { TODO : Completar este caso. Por ahora no lo permitiremos. }
-        GenError('No supported unimplemented INLINE functions.');
+        { Los SIF no soportan implementación separada.}
+        GenError('No supported implementing System INLINE functions.');
       end;
     end else begin
       //In Normal subroutine, we scan for parameters
@@ -233,7 +231,7 @@ procedure TCompiler_PIC16.ConstantFolding;
     TreeElems.CloseElement;              //Close the Body.
   end;
 var
-  fun : TEleFun;
+  fun : TEleFunDec;
   bod: TEleBody;
 begin
   compMod := cmConsEval;    //Mode Constant evaluation.
@@ -380,7 +378,7 @@ procedure TCompiler_PIC16.ConstanPropagation;
     TreeElems.CloseElement;              //Close the Body.
   end;
 var
-  fun : TEleFun;
+  fun : TEleFunDec;
   bod: TEleBody;
 begin
   compMod := cmConsEval;    //Generates code.
@@ -418,7 +416,7 @@ Parameters:
   var
     _setaux: TEleExpress;
     Op1aux: TEleExpress;
-    funSet: TEleFunBase;
+    funSet: TEleFunDec;
   begin
     //Create the new _set() expression.
     _setaux := CreateExpression('_set', typNull, otFunct, Op.srcDec);
@@ -648,7 +646,7 @@ begin
 end;
 procedure TCompiler_PIC16.PrepareSentences;
 var
-  fun : TEleFun;
+  fun : TEleFunDec;
   bod: TEleBody;
 begin
   //Split subroutines
@@ -664,16 +662,16 @@ begin
 end;
 procedure TCompiler_PIC16.GenerateMIR;
 var
-  fun : TEleFun;
+  astFunDec : TEleFunDec;
   xvar: TEleVarDec;
   bod : TEleBody;
   elem : TAstElement;
-  f: TMirFunDec;
-  eVarDec: TEleVarDec;
+  mirFunDec: TMirFunDec;
+  astVarDec: TEleVarDec;
 begin
   //Agrega variables globales
   for xvar in TreeElems.AllVars do begin
-    if xvar.Parent.idClass = eleFunc then continue;  //Las variables de funciones ya se crearon
+    if xvar.Parent.idClass = eleFuncImp then continue;  //Las variables de funciones ya se crearon
 //debugln('Verificando: ' + xvar.name);
     if (xvar.nCalled>0) or xvar.required then begin
       //Asigna una dirección válida para esta variable
@@ -682,21 +680,24 @@ begin
     end;
   end;
 
-  for fun in usedFuncs do begin
-    if fun.callType = ctUsrNormal then begin
-      f := mirCont.AddFunDecUNF(fun);
-      for elem In fun.elements do begin
+  for astFunDec in usedFuncs do begin
+    if astFunDec.callType = ctUsrNormal then begin
+      //Agrega al MIR y guarda referencia.
+      mirFunDec := mirCont.AddFunDecUNF(astFunDec);
+      //astFunDec.declar.mirFunDec := mirFunDec;
+      //Explora sus elementos internos.
+      for elem In astFunDec.elements do begin
           if elem.idClass = eleVarDec then begin
-            eVarDec := TEleVarDec(elem);  //Guarda referencia
+            astVarDec := TEleVarDec(elem);  //Guarda referencia
             //Agrega al MIR y guarda referencia.
-            eVarDec.mirVarDec := mirCont.AddVarDec(f, eVarDec);
+            astVarDec.mirVarDec := mirCont.AddVarDec(mirFunDec, astVarDec);
           end else if elem.idClass = eleBody then begin
-            mirCont.ConvertBody(f, TEleBody(elem));
+            mirCont.ConvertBody(mirFunDec, TEleBody(elem));
             //if HayError then exit;   //Puede haber error
           end;
       end;
-    end else if fun.callType = ctSysNormal then begin
-      mirCont.AddFunDecSNF(fun);
+    end else if astFunDec.callType = ctSysNormal then begin
+      mirFunDec := mirCont.AddFunDecSNF(astFunDec);
       //System function doesn't have body.
     end;
   end;
@@ -867,7 +868,7 @@ Must be called after DoOptimize().}
 var
   add , addr: word;
   add1, add2: word;
-  fun    : TEleFun;
+  fun    : TEleFunDec;
   i      : Integer;
   bod    : TEleBody;
   elem   : TAstElement;
@@ -1223,7 +1224,7 @@ var
   tmpList: TStringList;
   txt, OpCode, Times, state: String;
 
-  fun: TEleFun;
+  fun: TEleFunDec;
   caller : TAstEleCaller;
   called : TAstElement;
   //exitCall: TExitCall;

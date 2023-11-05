@@ -5,7 +5,7 @@ interface
 uses
   Classes, SysUtils, LCLType, LCLProc, SynEdit, SynEditHighlighter, LazUTF8,
   MisUtils, SynFacilCompletion, SynFacilHighlighter, SynFacilBasic,
-  FrameEditView, Globales, XpresElemP65, LexPas, Compiler_PIC16, EditView,
+  FrameEditView, Globales, AstElemP65, LexPas, Compiler_PIC16, EditView,
   FrameCfgCompiler6502;
 type
   { TCodeTool }
@@ -183,11 +183,11 @@ end;
 //Completado de código
 procedure TCodeTool.cxpTreeElemsFindElement(elem: TAstElement);
 var
-  xfun: TEleFun;
+  xfun: TEleFunImp;
 begin
-  if elem.idClass = eleFunc then begin
+  if elem.idClass = eleFuncImp then begin
     //Es función
-    xfun := TEleFun(elem);
+    xfun := TEleFunImp(elem);
     if high(xfun.pars) = -1 then begin
       //Sin parámetros
       opEve0.AddItem(elem.name+'', 5);

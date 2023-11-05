@@ -4,7 +4,7 @@ unit FormElemProperty;
 interface
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Buttons,
-  StdCtrls, ExtCtrls, MisUtils, XpresElemP65, CompContexts, StrUtils;
+  StdCtrls, ExtCtrls, MisUtils, AstElemP65, CompContexts, StrUtils;
 type
 
   { TfrmElemProperty }
@@ -101,16 +101,16 @@ begin
 end;
 procedure TfrmElemProperty.Exec(cIn: TContexts; elem0: TAstElement);
 var
-  adicInformation, dirSolic, tmp, implem: String;
+  adicInformation, dirSolic, tmp, hasImplem: String;
   xcon: TEleConsDec;
-  xfun: TEleFun;
+  funimp: TEleFunImp;
+  fundec: TEleFunDec;
   xbod: TEleBody;
   xvar: TEleVarDec;
   //ecall : TxpExitCall;
   xexp: TEleExpress;
   sen: TEleSentence;
   xtyp: TEleTypeDec;
-  xfundec: TEleFunDec;
   asmInst: TEleAsmInstr;
   asmBlock: TEleAsmBlock;
 begin
@@ -147,48 +147,50 @@ begin
            'Allocated: '  + ifthen(xvar.allocated, 'true', 'false') + LineEnding +
            'Required address: ' + dirSolic + LineEnding +
            'Asigned address: ' + xvar.AddrString;
-  end else if elem.idClass = eleFunc then begin
-    xfun := TEleFun(elem);
-    txtEleType.Caption := 'Function ('+elem.ClassName+')';;
-
-    ImageList1.GetBitmap(3, Image1.Picture.Bitmap);
-    //Genera reporte de ExitCalls
-    //tmp := '';  *** Esta información se puede sacar del AST.
-    //for ecall in xfun.lstExitCalls do begin
-    //  tmp := tmp + 'exit() in : ' + ecall.srcPos.RowColString + ' ' +
-    //         LineEnding;
-    //end;
-    if xfun.firstObligExit=nil then begin
-      tmp := 'No obligatory exit().' + LineEnding;
-    end else begin
-      tmp := 'Obligatory exit() in: ' + xfun.firstObligExit.srcDec.RowColString + LineEnding;
-    end;
-    //Información adicional
-    adicInformation :=
-           'Return type: ' + ifthen(xfun.retType=nil,'Unknown', xfun.retType.name) + LineEnding +
-           'Address: $' + IntToHex(xfun.adrr, 3) + LineEnding +
-           'Size: ' + IntToStr(xfun.srcSize) + LineEnding + tmp;
   end else if elem.idClass = eleFuncDec then begin
-    xfundec := TEleFunDec(elem);
+    fundec := TEleFunDec(elem);
     txtEleType.Caption := 'Function Dec.('+elem.ClassName+')';;
 
     ImageList1.GetBitmap(16, Image1.Picture.Bitmap);
     //Genera reporte de ExitCalls
     //tmp := '';
-    //for ecall in xfundec.lstExitCalls do begin
+    //for ecall in fundec.lstExitCalls do begin
     //  tmp := tmp + 'exit() in : ' + ecall.srcPos.RowColString + ' ' +
     //         LineEnding;
     //end;
-      if xfun.firstObligExit=nil then begin
-        tmp := 'No obligatory exit().' + LineEnding;
-      end else begin
-        tmp := 'Obligatory exit() in: ' + xfun.firstObligExit.srcDec.RowColString + LineEnding;
-      end;
+    if fundec.firstObligExit=nil then begin
+      tmp := 'No obligatory exit().' + LineEnding;
+    end else begin
+      tmp := 'Obligatory exit() in: ' + fundec.firstObligExit.srcDec.RowColString + LineEnding;
+    end;
     //Información adicional
-    if xfundec.implem<>nil then implem := 'Yes' else implem := 'Not';
+    if fundec.HasImplem then hasImplem := 'Yes' else hasImplem := 'Not';
     adicInformation :=
-           'Return type: ' + ifthen(xfundec.retType=nil,'Unknown', xfundec.retType.name) + LineEnding +
-           'Implemented: ' + implem + LineEnding + tmp;
+           'Return type: ' + ifthen(fundec.retType=nil,'Unknown', fundec.retType.name) + LineEnding +
+           'Address: $' + IntToHex(fundec.adrr, 3) + LineEnding +
+           'Size: ' + IntToStr(fundec.srcSize) + LineEnding +
+           'Has Implem.: ' + hasImplem + LineEnding +
+           tmp;
+  end else if elem.idClass = eleFuncImp then begin
+    funimp := TEleFunImp(elem);
+    txtEleType.Caption := 'Function ('+elem.ClassName+')';;
+
+    ImageList1.GetBitmap(3, Image1.Picture.Bitmap);
+    //Genera reporte de ExitCalls
+    //tmp := '';  *** Esta información se puede sacar del AST.
+    //for ecall in funimp.lstExitCalls do begin
+    //  tmp := tmp + 'exit() in : ' + ecall.srcPos.RowColString + ' ' +
+    //         LineEnding;
+    //end;
+    if funimp.firstObligExit=nil then begin
+      tmp := 'No obligatory exit().' + LineEnding;
+    end else begin
+      tmp := 'Obligatory exit() in: ' + funimp.firstObligExit.srcDec.RowColString + LineEnding;
+    end;
+    //Información adicional
+    adicInformation :=
+           'Return type: ' + ifthen(funimp.retType=nil,'Unknown', funimp.retType.name) + LineEnding +
+           tmp;
   end else if elem.idClass = eleUnit then begin
     txtEleType.Caption := 'Unit ('+elem.ClassName+')';
     ImageList1.GetBitmap(6, Image1.Picture.Bitmap);

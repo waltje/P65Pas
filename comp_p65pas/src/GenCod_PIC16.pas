@@ -50,23 +50,23 @@ interface
 uses
   Classes, SysUtils,
   P65c02utils, CPUCore, GenCodBas_PIC16,
-  CompBase, CompGlobals, XpresElemP65, LexPas;
+  CompBase, CompGlobals, AstElemP65, LexPas;
 type
     { TGenCod }
     TGenCod = class(TGenCodBas)
     private
-      snfBytMulByt16: TEleFun;
-      snfWordShift_l: TEleFun;
-      snfDelayMs:     TEleFun;
-      snfBytDivByt8:  TEleFun;
-      snfWrdDivWrd16: TEleFun;
+      snfBytMulByt16: TEleFunDec;
+      snfWordShift_l: TEleFunDec;
+      snfDelayMs:     TEleFunDec;
+      snfBytDivByt8:  TEleFunDec;
+      snfWrdDivWrd16: TEleFunDec;
       procedure AddLocVar(var pars: TParamFuncArray; parName: string;
         const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
       procedure AddParam(var pars: TParamFuncArray; parName: string;
         const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
       function AddSysNormalFunction(name: string; retType: TEleTypeDec;
         const srcPos: TSrcPos; var pars: TParamFuncArray; codSys: TCodSysNormal
-  ): TEleFun;
+  ): TEleFunDec;
       procedure arrayHigh(fun: TEleExpress);
       procedure arrayLength(fun: TEleExpress);
       procedure arrayLow(fun: TEleExpress);
@@ -97,16 +97,16 @@ type
       function Invert(fun: TEleExpress): boolean;
       function CreateInUOMethod(clsType: TEleTypeDec; opr: string; name: string;
         retType: TEleTypeDec; pCompile: TCodSysInline; operTyp: TOperatorType =
-  opkUnaryPre): TEleFun;
+  opkUnaryPre): TEleFunDec;
       function CreateInBOMethod(clsType: TEleTypeDec; opr: string; name: string;
         parType: TEleTypeDec; retType: TEleTypeDec; pCompile: TCodSysInline
-        ): TEleFun;
+  ): TEleFunDec;
       function CreateInTerMethod(clsType: TEleTypeDec; name: string; parType1,
         parType2: TEleTypeDec; retType: TEleTypeDec; pCompile: TCodSysInline
-  ): TEleFun;
+  ): TEleFunDec;
       function AddSysInlineFunction(name: string; retType: TEleTypeDec;
         const srcPos: TSrcPos; const pars: TParamFuncArray;
-  codSys: TCodSysInline): TEleFun;
+  codSys: TCodSysInline): TEleFunDec;
       procedure DefineArray(etyp: TEleTypeDec);
       procedure DefinePointer(etyp: TEleTypeDec);
       procedure DefineShortPointer(etyp: TEleTypeDec);
@@ -231,8 +231,8 @@ var
   MSG_NOT_IMPLEM, MSG_INVAL_PARTYP, MSG_UNSUPPORTED : string;
   MSG_CANNOT_COMPL, MSG_IDX_BYT_WORD, ER_INV_MEMADDR, ER_INV_MAD_DEV: string;
 var
-  sifByteMulByte, sifByteDivByte, sifByteModByte: TEleFun;
-  sifWordDivWord, sifWordModWord, sifWordShlByte: TEleFun;
+  sifByteMulByte, sifByteDivByte, sifByteModByte: TEleFunDec;
+  sifWordDivWord, sifWordModWord, sifWordShlByte: TEleFunDec;
 procedure SetLanguage;
 begin
   GenCodBas_PIC16.SetLanguage;
@@ -1315,7 +1315,7 @@ end;
 procedure TGenCod.SIF_byte_mul_byte(fun: TEleExpress);
 var
   AddrUndef: boolean;
-  fmul: TEleFun;
+  fmul: TEleFunDec;
   parA, parB: TEleExpress;
 begin
   parA := TEleExpress(fun.elements[0]);  //Parameter A
@@ -2233,7 +2233,7 @@ end;
 procedure TGenCod.SIF_byte_div_byte(fun: TEleExpress);
   var parA, parB: TEleExpress;
       AddrUndef: boolean;
-      fdiv: TEleFun;
+      fdiv: TEleFunDec;
 
   procedure DivbyConst;
   begin
@@ -2379,7 +2379,7 @@ end;
 procedure TGenCod.SIF_byte_mod_byte(fun: TEleExpress);
   var parA, parB: TEleExpress;
       AddrUndef: boolean;
-      fmod: TEleFun;
+      fmod: TEleFunDec;
 
   procedure ModByConst;
   begin
@@ -5289,10 +5289,10 @@ end;
 procedure TGenCod.SIF_delay_ms(fun: TEleExpress);
 var
   par: TEleExpress;
-  elefun: TEleFun;
+  elefun: TEleFunDec;
 begin
   par := TEleExpress(fun.elements[0]);  //Only one parameter
-  elefun := TEleFun(fun.rfun);  ////**** VErificar si es válido siempre.
+  elefun := fun.rfun;  ////**** VErificar si es válido siempre.
   if par.Typ = typByte then begin
     //El parámetro byte, debe estar en A
     if fun.opType=otFunct then begin
@@ -7492,7 +7492,7 @@ end;
 procedure TGenCod.SIF_word_div_word(fun: TEleExpress);
   var parA, parB: TEleExpress;
       AddrUndef: boolean;
-      fdiv: TEleFun;
+      fdiv: TEleFunDec;
       Dividend, Divisor: TEleVarDec;
 
   procedure DivbyConst;
@@ -7622,7 +7622,7 @@ end;
 procedure TGenCod.SIF_word_mod_word(fun: TEleExpress);
   var parA, parB: TEleExpress;
       AddrUndef: boolean;
-      fdiv: TEleFun;
+      fdiv: TEleFunDec;
       Dividend, Divisor, Remainder: TEleVarDec;
 
   procedure ModbyConst;
@@ -7766,7 +7766,7 @@ procedure TGenCod.DefineArray(etyp: TEleTypeDec);
 var
   consDec: TEleConsDec;
   expr: TEleExpress;
-  f, f1, f2: TEleFun;
+  f, f1, f2: TEleFunDec;
 begin
   //Create assigement method
   f := CreateInBOMethod(etyp, ':=', '_set', etyp, typNull, @SIF_arr_asig_arr);
@@ -7798,7 +7798,7 @@ end;
 procedure TGenCod.DefinePointer(etyp: TEleTypeDec);
 {Set operations that defines pointers aritmethic.}
 var
-  f, f1: TEleFun;
+  f, f1: TEleFunDec;
 begin
   //Asignación desde word y Puntero
   f := CreateInBOMethod(etyp, ':=', '_set', typWord, typNull, @SIF_word_asig_word);
@@ -7835,7 +7835,7 @@ procedure TGenCod.DefineObject(etyp: TEleTypeDec);
 var
   consDec: TEleConsDec;
   expr: TEleExpress;
-  f, f1, f2: TEleFun;
+  f, f1, f2: TEleFunDec;
 begin
   //Create assigement method
   f := CreateInBOMethod(etyp, ':=', '_set', etyp, typNull, @SIF_obj_asig_obj);
@@ -7896,38 +7896,38 @@ begin
   pars[n].isLocVar := true;
 end;
 function TGenCod.AddSysInlineFunction(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
-               const pars: TParamFuncArray; codSys: TCodSysInline): TEleFun;
+               const pars: TParamFuncArray; codSys: TCodSysInline): TEleFunDec;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
    pars   -> Array of parameters for the function to be created.
    codSys -> SIF Routine or the the routine to generate de code.
 }
 var
-   fundec: TEleFunDec;
+   funimp: TEleFunImp;
    tmpLoc: TElemLocation;
 begin
   tmpLoc := curLocation;     //Save current location. We are going to change it.
   //Add declaration
   curLocation := locInterface;
-  fundec := AddFunctionDEC(name, retType, srcPos, pars, false);
-  fundec.callType := ctSysInline; //INLINE function
+  Result := AddFunctionDEC(name, retType, srcPos, pars, false);
+  Result.callType := ctSysInline; //INLINE function
   //Implementation
   {Note that implementation is added always after declarartion. It's not the usual
   in common units, where all declarations are first}
   curLocation := locImplement;
-  Result := AddFunctionIMP(name, retType, srcPos, fundec, true);
+  funimp := AddFunctionIMP(name, retType, srcPos, Result, true);
   //Here variables can be added
   {Create a body, to be uniform with normal function and for have a space where
   compile code and access to posible variables or other elements.}
   TreeElems.AddBodyAndOpen(SrcPos);  //Create body
-  Result.callType     := ctSysInline; //INLINE function
-  Result.codSysInline := codSys;  //Set routine to generate code o SIF routine.
+  funimp.callType     := ctSysInline; //INLINE function
+  funimp.codSysInline := codSys;  //Set routine to generate code o SIF routine.
   TreeElems.CloseElement;  //Close body
   TreeElems.CloseElement;  //Close function implementation
   curLocation := tmpLoc;   //Restore current location
 end;
 function TGenCod.AddSysNormalFunction(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
-               var pars: TParamFuncArray; codSys: TCodSysNormal): TEleFun;
+               var pars: TParamFuncArray; codSys: TCodSysNormal): TEleFunDec;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
    pars   -> Array of parameters for the function to be created.
@@ -7957,6 +7957,7 @@ var
   end;
 var
    fundec: TEleFunDec;
+   funimp: TEleFunImp;
    tmpLoc: TElemLocation;
    locvar: TEleVarDec;
    i: Integer;
@@ -7971,7 +7972,7 @@ begin
   {Note that implementation is added always after declarartion. It's not the usual
   in common units, where all declarations are first}
   curLocation := locImplement;
-  Result := AddFunctionIMP(name, retType, srcPos, fundec, true);
+  funimp := AddFunctionIMP(name, retType, srcPos, fundec, true);
   //Create local variables
   for i:=0 to high(local_vars) do begin
     locvar := TreeElems.AddVarDecAndOpen(srcPos, local_vars[i].name, local_vars[i].typ);
@@ -7984,17 +7985,17 @@ begin
   compile code and access to posible variables or other elements.}
   TreeElems.AddBodyAndOpen(SrcPos);  //Create body
   //Set function created
-  Result.callType     := ctSysNormal;
-  Result.codSysNormal := codSys;  //Set routine to generate code SIF.
+  funimp.callType     := ctSysNormal;
+  funimp.codSysNormal := codSys;  //Set routine to generate code SIF.
   TreeElems.CloseElement;  //Close body
   TreeElems.CloseElement;  //Close function implementation
   curLocation := tmpLoc;   //Restore current location
   //Add callers to local variables created. Must be done after creating the body.
   for i:=0 to high(local_vars) do begin
     locvar := local_vars[i].pvar;
-    AddCallerToFrom(locvar, Result.BodyNode);
+    AddCallerToFrom(locvar, funimp.BodyNode);
   end;
-
+  exit(fundec);
 end;
 function TGenCod.CreateInUOMethod(
                       clsType: TEleTypeDec;   //Base type where the method bellow.
@@ -8002,7 +8003,7 @@ function TGenCod.CreateInUOMethod(
                       name    : string;      //Name of the method
                       retType : TEleTypeDec;  //Type returned by the method.
                       pCompile: TCodSysInline;
-                      operTyp: TOperatorType = opkUnaryPre): TEleFun;
+                      operTyp: TOperatorType = opkUnaryPre): TEleFunDec;
 {Create a new system function (associated to a unary operator) in the current element of
  the AST.
  Returns the reference to the function created.}
@@ -8029,7 +8030,7 @@ function TGenCod.CreateInBOMethod(
                       name    : string;      //Name of the method
                       parType : TEleTypeDec;  //Parameter type
                       retType : TEleTypeDec;  //Type returned by the method.
-                      pCompile: TCodSysInline): TEleFun;
+                      pCompile: TCodSysInline): TEleFunDec;
 {Create a new system function (associated to a binary operator) in the current element of
  the AST. If "opr" is null, just create a method without operator.
  Returns the reference to the function created.}
@@ -8056,7 +8057,7 @@ begin
 end;
 function TGenCod.CreateInTerMethod(clsType: TEleTypeDec;
   name: string; parType1, parType2: TEleTypeDec; retType: TEleTypeDec;
-  pCompile: TCodSysInline): TEleFun;
+  pCompile: TCodSysInline): TEleFunDec;
 {Create a new system ternary INLINE function in the current element of
  the AST.
  Returns the reference to the function created.}
@@ -8157,7 +8158,7 @@ begin
 end;
 procedure TGenCod.CreateBooleanOperations;
 var
-  f: TEleFun;
+  f: TEleFunDec;
 begin
   /////////////// Boolean type ////////////////////
   //Methods-Operators
@@ -8179,7 +8180,7 @@ begin
 end;
 procedure TGenCod.CreateByteOperations;
 var
-  f: TEleFun;
+  f: TEleFunDec;
 begin
   /////////////// Byte type ////////////////////
   //Methods-Operators
@@ -8229,7 +8230,7 @@ begin
 end;
 procedure TGenCod.CreateCharOperations;
 var
-  f: TEleFun;
+  f: TEleFunDec;
 begin
   /////////////// Char type ////////////////////
   TreeElems.OpenElement(typChar);
@@ -8244,7 +8245,7 @@ begin
 end;
 procedure TGenCod.CreateWordOperations;
 var
-  f: TEleFun;
+  f: TEleFunDec;
 begin
   /////////////// Word type ////////////////////
   TreeElems.OpenElement(typWord);
@@ -8309,7 +8310,7 @@ begin
 end;
 procedure TGenCod.CreateTripletOperations;
 var
-  f: TEleFun;
+  f: TEleFunDec;
   pars: TParamFuncArray;  //Array of parameters
 begin
   TreeElems.OpenElement(typTriplet);
@@ -8341,7 +8342,7 @@ procedure TGenCod.CreateSystemElements;
 var
   uni: TEleUnit;
   pars: TParamFuncArray;  //Array of parameters
-  f, sifDelayMs, sifWord: TEleFun;
+  f, sifDelayMs, sifWord: TEleFunDec;
 begin
   //////// Funciones del sistema ////////////
   //Implement calls to Code Generator

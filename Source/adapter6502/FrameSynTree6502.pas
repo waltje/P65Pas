@@ -5,7 +5,7 @@ uses
   Classes, SysUtils, FileUtil, TreeFilterEdit, Forms, Controls,
   ComCtrls, Menus, ActnList, ExtCtrls, LCLProc, Graphics,
   Globales, FormElemProperty, CompBase,
-  XpresElemP65, XpresAST, LexPas, MisUtils;
+  AstElemP65, AstTree, LexPas, MisUtils;
 type
   { TfraSynxTree6502 }
   TfraSynxTree6502 = class(TFrame)
@@ -116,7 +116,7 @@ begin
   end else if elem.idClass = eleFuncDec then begin
     nod.ImageIndex := 16;
     nod.SelectedIndex := 16;
-  end else if elem.idClass = eleFunc then begin
+  end else if elem.idClass = eleFuncImp then begin
     nod.ImageIndex := 3;
     nod.SelectedIndex := 3;
   end else if elem.idClass = eleUnit then begin

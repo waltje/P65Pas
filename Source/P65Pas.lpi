@@ -285,7 +285,7 @@
         <IsPartOfProject Value="True"/>
       </Unit33>
       <Unit34>
-        <Filename Value="..\comp_p65pas\src\XpresMIR.pas"/>
+        <Filename Value="..\comp_p65pas\src\MirList.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit34>
       <Unit35>

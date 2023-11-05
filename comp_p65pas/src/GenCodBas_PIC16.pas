@@ -5,7 +5,7 @@ unit GenCodBas_PIC16;
 interface
 uses
   Classes, SysUtils, CPUCore, P65c02utils, CompBase, ParserDirec, CompGlobals,
-  XpresElemP65, LexPas, StrUtils, LazLogger;
+  AstElemP65, LexPas, StrUtils, LazLogger;
 const
   STACK_SIZE = 8;      //tamaño de pila para subrutinas en el PIC
   MAX_REGS_AUX_BYTE = 6;   //cantidad máxima de registros a usar
@@ -80,7 +80,7 @@ type
     compMod: TCompMod;  //Mode of the compiler
     function requireA: boolean;  //Declare use of register A
   protected
-    procedure functCall(fun: TEleFunBase; out AddrUndef: boolean);
+    procedure functCall(xfun: TEleFunDec; out AddrUndef: boolean);
     procedure CreateVarsAndPars;
     procedure codRTS(isInterrupt: boolean);
     procedure GenCodeExpr(eleExp: TEleExpress);
@@ -1759,21 +1759,11 @@ function TGenCodBas.RAMmax: integer;
 begin
    Result := high(pic.ram);
 end;
-procedure TGenCodBas.functCall(fun: TEleFunBase; out AddrUndef: boolean);
+procedure TGenCodBas.functCall(xfun: TEleFunDec; out AddrUndef: boolean);
 {General routine to make the call to a Normal function.}
-var
-  xfun: TEleFun;
 begin
   //////// Make the CALL
   AddrUndef := false;
-  //Get the implementation
-  if fun.idClass = eleFunc then begin
-    //It's already the implementation.
-    xfun := TEleFun(fun);
-  end else begin
-    //Must be a declaration
-    xfun := TEleFunDec(fun).implem;
-  end;
   //In Code Generation (when executing this) it's supposed all functions are implemented.
   if xfun.coded then begin
     //We have a real address
@@ -1792,7 +1782,7 @@ procedure TGenCodBas.CreateVarsAndPars;
 var
   elem   : TAstElement;
   xvar   : TEleVarDec;
-  fun    : TEleFun;
+  fun    : TEleFunDec;
 begin
   //Explora primero a las funciones terminales
   for fun in usedFuncs do begin
@@ -1828,7 +1818,7 @@ begin
   end;
   //Reserva espacio para las variables (Que no son de funciones).
   for xvar in TreeElems.AllVars do begin
-    if xvar.Parent.idClass = eleFunc then continue;  //Las variables de funciones ya se crearon
+    if xvar.Parent.idClass = eleFuncImp then continue;  //Las variables de funciones ya se crearon
     //if xvar.Parent.idClass = eleUnit then continue;
 //debugln('Verificando: ' + xvar.name);
     if (xvar.nCalled>0) or xvar.required then begin
@@ -1856,7 +1846,7 @@ procedure TGenCodBas.GenCodeExpr(eleExp: TEleExpress);
 not generate code. This is a recursive procedure.
 Nodes otConst, must be evaluated.}
 var
-  funcBase: TEleFunBase;
+  funcBase: TEleFunDec;
   AddrUndef, regsUsed: boolean;
   ele: TAstElement;
   parExpr: TEleExpress;
@@ -1866,7 +1856,7 @@ begin
     funcBase := eleExp.rfun;
     if funcBase.callType = ctSysInline then begin
       //It's an INLINE function. It could be already implemented or not.
-      if funcBase.idClass = eleFunc then begin
+      if funcBase.idClass = eleFuncDec then begin
         //It's the implementation. No problem.
         regsUsed := false;  //Set flag to indicate Registers are not used.
         //Check first if it's needed to evaluate parameters.
@@ -1898,10 +1888,8 @@ begin
           eleExp.elements.Clear;  //Variables don't have childrens.
         end;
       end else begin
-        //Should be the declaration. Maybe it's already implemented, or maybe not.
-        //funcDec := TxpEleFunDec(funcBase);
-        { TODO : Completar este caso. Por ahora no lo permitiremos. }
-        GenError('No support for unimplemented INLINE functions.');
+        { Los SIF no soportan implementación separada.}
+        GenError('No supported implementing System INLINE functions.');
       end;
     end else if funcBase.callType in [ctSysNormal, ctUsrNormal] then begin
       //Should be a Normal subroutine. Generates the CALL instruction.
@@ -1933,7 +1921,7 @@ procedure TGenCodBas.GenCodeASMline(asmInst: TEleAsmInstr);
   var
     xvar: TEleVarDec;
     xcon: TEleConsDec;
-    xfun: TEleFun;
+    xfun: TEleFunDec;
     instTarget: TEleAsmInstr;
   begin
     Result := 0;
@@ -1951,8 +1939,8 @@ procedure TGenCodBas.GenCodeASMline(asmInst: TEleAsmInstr);
         exit;
       end;
       Result := xcon.value^.ValInt;
-    end else if paramRef.idClass = eleFunc then begin
-      xfun := TEleFun(paramRef);
+    end else if paramRef.idClass = eleFuncDec then begin
+      xfun := TEleFunDec(paramRef);
       if not xfun.coded then begin
         GenError('Function not coded.', paramRef.srcDec);
         exit;
@@ -2310,7 +2298,7 @@ end;
 procedure TGenCodBas.GenCodeExit(sen: TEleSentence);
 {Se debe dejar en los registros de trabajo, el valor del parámetro indicado.}
 var
-  curFun: TEleFun;
+  curFun: TEleFunImp;
   par, expSet: TEleExpress;
   parentNod: TAstElement;
   ele: TAstElement;
@@ -2323,11 +2311,11 @@ begin
     //There is an expression.
     //It's supposed to be a function. We don't validate here. It's been done in Analyze.
     parentNod := TreeElems.curCodCont.Parent;
-    if parentNod.idClass <> eleFunc then begin  //Shouldn't happen
+    if parentNod.idClass <> eleFuncImp then begin  //Shouldn't happen
       GenError('Design error.');
       exit;
     end;
-    curFun := TEleFun(parentNod);
+    curFun := TEleFunImp(parentNod);
     //Generate code for evaluating all possible expressions
     for ele in sen.elements do begin
       expSet := TEleExpress(ele);  //Takes assigment function or the last expression.

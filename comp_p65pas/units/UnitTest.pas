@@ -6,7 +6,7 @@ unit UnitTest;
 interface
 var
   PORTB   : byte absolute $06;   //This will work on 12 bits instructions (GPIO) and 14 bits instructions (PORTB)
-  pinLed  : bit absolute PORTB.0;
+  pinLed  : boolean absolute PORTB;
  
   procedure good;
   procedure bad;
@@ -15,18 +15,17 @@ implementation
 
   procedure good;
   begin
-    pinLed := 1;
-    delay_ms(30);
-    pinLed := 0;
-    delay_ms(30);
+    pinLed := true;
+    delay_ms(word(30));
+    pinLed := false;
+    delay_ms(word(30));
   end;
 
   procedure bad;
   begin
-    pinLed := 1;
+    pinLed := false;
     delay_ms(1500);
-    pinLed := 0;
-    asm SLEEP end
+    pinLed := true;
   end;
 
 end.

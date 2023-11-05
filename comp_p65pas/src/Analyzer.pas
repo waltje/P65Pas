@@ -2,7 +2,7 @@ unit Analyzer;
 {$mode objfpc}{$H+}
 interface
 uses
-  Classes, SysUtils, Types, CompBase, XpresElemP65,
+  Classes, SysUtils, Types, CompBase, AstElemP65,
   LexPas, ParserASM_6502, CPUCore, CompGlobals;
 type
 
@@ -1243,7 +1243,7 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
   var
     ele : TAstElement;
     uname: String;
-    fun: TEleFun;
+    fun: TEleFunImp;
     funInterface: TEleFunDec;
   begin
     {Se supone que esta exploración solo se hará en la primera pasada, así que no hay
@@ -1272,9 +1272,9 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
           end;
         end else if ele.location = locImplement then begin
           //Is an IMPLEMENTATION element.
-          if ele.idClass = eleFunc then begin
+          if ele.idClass = eleFuncImp then begin
             //Para las funciones, se debe comparar los parámetros
-            fun := TEleFun(ele);
+            fun := TEleFunImp(ele);
             if fun.SameParamsType(pars) then begin
               {Two similar functions in the same IMPLEMENTATION scope.}
               GenError(ER_DUPLIC_FUNC_,[procName], srcPos);
@@ -1299,7 +1299,7 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
   var
     uname: String;
     ele : TAstElement;
-    fun: TEleFun;
+    fun: TEleFunImp;
     fundec: TEleFunDec;
   begin
     Result := nil;
@@ -1316,9 +1316,9 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
             Result := fundec;  //Return FORWARD function
           end;
           //Continue exploring to validate
-        end else if ele.idClass = eleFunc then begin
+        end else if ele.idClass = eleFuncImp then begin
           //Para las funciones, se debe comparar los parámetros
-          fun := TEleFun(ele);
+          fun := TEleFunImp(ele);
           if fun.SameParamsType(pars) then begin
             //Is not FORWARD, must be duplicated:
             GenError(ER_DUPLIC_FUNC_,[procName], srcPos);
@@ -1334,7 +1334,7 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
   end;
 var
   funDec, funInterface, funForward: TEleFunDec;
-  fun: TEleFun;
+  fun: TEleFunDec;
   bod: TEleBody;
   IsInterrupt, IsForward: Boolean;
   procName, tokL: String;
@@ -1383,8 +1383,8 @@ begin
     funInterface := FindProcInInterface(procName, pars, srcPos);
     if HayError then exit;
     if funInterface<>nil then begin
-      //Es una implementación normal
-      fun := AddFunctionIMP(procName, retType, srcPos, funInterface, true);
+      //Es la implementación de una función que existe en INTERFACE.
+      fun := AddFunctionIMP(procName, retType, srcPos, funInterface, true).declar;
     end else begin
       //Debe ser una función privada. No declarada en INTERFACE.
       //Ya verificamos que no hay conflicto en IMPLEMENTATION.
@@ -1412,8 +1412,8 @@ begin
     funForward := FindProcAsForwawd(procName, pars, srcPos);
     if HayError then exit;
     if funForward<>nil then begin
-      //It's an implementation
-      fun := AddFunctionIMP(procName, retType, srcPos, funForward, true);
+      //It's the implementation of a FORWARD
+      fun := AddFunctionIMP(procName, retType, srcPos, funForward, true).declar;
     end else begin
       //It's a common function
       fun := AddFunctionUNI(procName, retType, srcPos, pars, IsInterrupt, true);
@@ -1497,7 +1497,7 @@ begin
 //        //Es elemento de INTERFACE
 //        if ele.uname = uname then begin
 //          //Hay coincidencia de nombre
-//          if ele.idClass = eleFunc then begin
+//          if ele.idClass = eleFuncImp then begin
 //            //Para las funciones, se debe comparar los parámetros
 //            fun := TxpEleInlin(ele);
 //            if fun.SameParamsType(pars) then begin
@@ -1680,7 +1680,7 @@ var
   _varaux: TEleVarDec;
   _setaux: TEleExpress;
   Op1aux, Op2aux: TEleExpress;
-  funSet: TEleFunBase;
+  funSet: TEleFunDec;
   OpPos: Integer;
   OpParent: TAstElement;
 begin
@@ -1923,7 +1923,7 @@ procedure TAnalyzer.AnalyzeFORwhile;
   var
     elem: TEleCondit;
     _lequ, xvar: TEleExpress;
-    funSet: TEleFunBase;
+    funSet: TEleFunDec;
   begin
     //Create and open condition
     elem := TEleCondit.Create;
@@ -2043,7 +2043,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
   function SetOperation(_comp: TEleExpress; opType: TEleTypeDec; opStr: string): boolean;
   {Set the operation for a comparison expression. If generates error, returns FALSE.}
   var
-    funSet: TEleFunBase;
+    funSet: TEleFunDec;
   begin
     //Create and set function for comparison.
     funSet := MethodFromBinOperator(opType, opStr, opType);
@@ -2284,7 +2284,7 @@ procedure TAnalyzer.AnalyzeEXIT(exitSent: TEleSentence);
   end;
 var
   parentNod: TAstElement;
-  func: TEleFun;
+  func: TEleFunImp;
   oper: TEleExpress;
   prog: TEleProg;
 begin
@@ -2300,8 +2300,8 @@ begin
     end;
     //Lleva el registro de las llamadas a exit()
     prog.RegisterExitCall(exitSent);
-  end else if parentNod.idClass = eleFunc then begin
-    func := TEleFun(parentNod);
+  end else if parentNod.idClass = eleFuncImp then begin
+    func := TEleFunImp(parentNod);
     if func.retType = typNull then begin
       //Is Procedure
         if GetExitExpression(oper) then begin
@@ -2710,9 +2710,11 @@ begin
   //Verifica si todas las funciones de INTERFACE, se implementaron
   for elem in TreeElems.curNode.elements do if elem.idClass = eleFuncDec then begin
     fundec := TEleFunDec(elem);
-    if fundec.implem = nil then begin
-      GenError('Function %s not implemented.', [fundec.name], fundec.srcDec);
-      exit;
+    if fundec.BodyNode = nil then begin  //Sin cuerpo. Debe ser FORWARD.
+      if fundec.implem = nil then begin
+        GenError('Function %s not implemented.', [fundec.name], fundec.srcDec);
+        exit;
+      end;
     end;
   end;
   CompileLastEnd;
@@ -2822,9 +2824,11 @@ begin
   //Verifica si todas las funciones FORWARD, se implementaron
   for elem in TreeElems.curNode.elements do if elem.idClass = eleFuncDec then begin
     fundec := TEleFunDec(elem);
-    if fundec.implem = nil then begin
-      GenError('Function %s not implemented.', [fundec.name], fundec.srcDec);
-      exit;
+    if fundec.BodyNode = nil then begin  //Sin cuerpo. Debe ser FORWARD.
+      if fundec.implem = nil then begin
+        GenError('Function %s not implemented.', [fundec.name], fundec.srcDec);
+        exit;
+      end;
     end;
   end;
   CompileLastEnd;  //Compila el "END." final

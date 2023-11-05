@@ -4,7 +4,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Grids, ExtCtrls, StdCtrls,
   Buttons, Graphics, LCLType, Menus, LCLProc, ActnList, P65c02utils, MisUtils,
-  UtilsGrilla, CibGrillas, CompBase, CPUCore, Globales, XpresElemP65, Analyzer;
+  UtilsGrilla, CibGrillas, CompBase, CPUCore, Globales, AstElemP65, Analyzer;
 type
 
   { TfraRegWatcher }
