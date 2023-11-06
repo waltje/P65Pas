@@ -64,7 +64,7 @@ type
         const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
       procedure AddParam(var pars: TParamFuncArray; parName: string;
         const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
-      function AddSysNormalFunction(name: string; retType: TEleTypeDec;
+      function AddSNFtoUnit(name: string; retType: TEleTypeDec;
         const srcPos: TSrcPos; var pars: TParamFuncArray; codSys: TCodSysNormal
   ): TEleFunDec;
       procedure arrayHigh(fun: TEleExpress);
@@ -104,7 +104,7 @@ type
       function CreateInTerMethod(clsType: TEleTypeDec; name: string; parType1,
         parType2: TEleTypeDec; retType: TEleTypeDec; pCompile: TCodSysInline
   ): TEleFunDec;
-      function AddSysInlineFunction(name: string; retType: TEleTypeDec;
+      function AddSIFtoUnit(name: string; retType: TEleTypeDec;
         const srcPos: TSrcPos; const pars: TParamFuncArray;
   codSys: TCodSysInline): TEleFunDec;
       procedure DefineArray(etyp: TEleTypeDec);
@@ -7895,7 +7895,7 @@ begin
   pars[n].adicVar.hasInit := false;
   pars[n].isLocVar := true;
 end;
-function TGenCod.AddSysInlineFunction(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
+function TGenCod.AddSIFtoUnit(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
                const pars: TParamFuncArray; codSys: TCodSysInline): TEleFunDec;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
@@ -7926,7 +7926,7 @@ begin
   TreeElems.CloseElement;  //Close function implementation
   curLocation := tmpLoc;   //Restore current location
 end;
-function TGenCod.AddSysNormalFunction(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
+function TGenCod.AddSNFtoUnit(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
                var pars: TParamFuncArray; codSys: TCodSysNormal): TEleFunDec;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
@@ -8333,7 +8333,7 @@ begin
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);  //Parameter NULL, allows any type.
   //sifWord :=
-  AddSysInlineFunction('triplet', typTriplet, srcPosNull, pars, @SIF_Triplet);
+  AddSIFtoUnit('triplet', typTriplet, srcPosNull, pars, @SIF_Triplet);
   //AddCallerToFrom(H, sifWord.BodyNode);  //Require H
 
 end;
@@ -8441,46 +8441,46 @@ begin
 //  setlength(pars, 0);  //Reset parameters
 //  AddParam(pars, 'ms', srcPosNull, typWord, decRegis);  //Add parameter
 //  sifDelayMs :=
-//  AddSysInlineFunction('delay_ms', typNull, srcPosNull, pars, @SIF_delay_ms);
+//  AddSIFtoUnit('delay_ms', typNull, srcPosNull, pars, @SIF_delay_ms);
 
   //Create system function "inc"
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);  //Parameter NULL, allows any type.
   sifFunInc :=
-  AddSysInlineFunction('inc', typNull, srcPosNull, pars, @SIF_Inc);
+  AddSIFtoUnit('inc', typNull, srcPosNull, pars, @SIF_Inc);
 
   //Create system function "dec"
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);  //Parameter NULL, allows any type.
-  AddSysInlineFunction('dec', typNull, srcPosNull, pars, @SIF_Dec);
+  AddSIFtoUnit('dec', typNull, srcPosNull, pars, @SIF_Dec);
 
   //Create system function "ord"
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);
-  AddSysInlineFunction('ord', typByte, srcPosNull, pars, @SIF_Ord);
+  AddSIFtoUnit('ord', typByte, srcPosNull, pars, @SIF_Ord);
 
   //Create system function "chr"
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);
-  AddSysInlineFunction('chr', typChar, srcPosNull, pars, @SIF_Chr);
+  AddSIFtoUnit('chr', typChar, srcPosNull, pars, @SIF_Chr);
 
   //Create system function "byte"
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);  //Parameter NULL, allows any type.
-  AddSysInlineFunction('byte', typByte, srcPosNull, pars, @SIF_Byte);
+  AddSIFtoUnit('byte', typByte, srcPosNull, pars, @SIF_Byte);
 
   //Create system function "word"
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);  //Parameter NULL, allows any type.
   sifWord :=
-  AddSysInlineFunction('word', typWord, srcPosNull, pars, @SIF_Word);
+  AddSIFtoUnit('word', typWord, srcPosNull, pars, @SIF_Word);
   AddCallerToFrom(H, sifWord.BodyNode);  //Require H
 
   //Create system function "word"
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typNull, decNone);  //Parameter NULL, allows any type.
   //sifWord :=
-  AddSysInlineFunction('dword', typDWord, srcPosNull, pars, @SIF_DWord);
+  AddSIFtoUnit('dword', typDWord, srcPosNull, pars, @SIF_DWord);
   //AddCallerToFrom(H, sifWord.BodyNode);  //Require H
 
   ///////////////// System Normal functions (SNF) ///////////////
@@ -8489,13 +8489,13 @@ begin
   AddParam(pars, 'A', srcPosNull, typByte, decNone);  //Add parameter
   AddParam(pars, 'B', srcPosNull, typByte, decNone);  //Add parameter
   snfBytMulByt16 :=
-  AddSysNormalFunction('byt_mul_byt_16', typWord, srcPosNull, pars, @SNF_byt_mul_byt_16);
+  AddSNFtoUnit('byt_mul_byt_16', typWord, srcPosNull, pars, @SNF_byt_mul_byt_16);
   //Division system function
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'A', srcPosNull, typByte, decRegisA);  //Add parameter
   AddParam(pars, 'B', srcPosNull, typByte, decRegisX);  //Add parameter
   snfBytDivByt8 :=
-  AddSysNormalFunction('byt_div_byt_8', typByte, srcPosNull, pars, @SNF_byt_div_byt_8);
+  AddSNFtoUnit('byt_div_byt_8', typByte, srcPosNull, pars, @SNF_byt_div_byt_8);
   AddCallerToFrom(E, snfBytDivByt8.BodyNode);
   //Division system function
   setlength(pars, 0);  //Reset parameters
@@ -8503,18 +8503,18 @@ begin
   AddParam(pars, 'B', srcPosNull, typWord, decNone);  //Add parameter
   AddLocVar(pars, 'tmp', srcPosNull, typWord, decNone);  //Add local variable
   snfWrdDivWrd16 :=
-  AddSysNormalFunction('wrd_div_wrd_16', typWord, srcPosNull, pars, @SNF_wrd_div_wrd_16);
+  AddSNFtoUnit('wrd_div_wrd_16', typWord, srcPosNull, pars, @SNF_wrd_div_wrd_16);
   AddCallerToFrom(E, snfWrdDivWrd16.BodyNode);
   //Word shift left
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typByte, decRegisX);   //Parameter counter shift
   snfWordShift_l :=
-  AddSysNormalFunction('word_shift_l', typWord, srcPosNull, pars, @SNF_word_shift_l);
+  AddSNFtoUnit('word_shift_l', typWord, srcPosNull, pars, @SNF_word_shift_l);
   //Delay system function
   setlength(pars, 0);  //Reset parameters
   AddParam(pars, 'n', srcPosNull, typWord, decRegis);
   snfDelayMs :=
-  AddSysNormalFunction('delay_ms', typWord, srcPosNull, pars, @SNF_delay_ms);
+  AddSNFtoUnit('delay_ms', typWord, srcPosNull, pars, @SNF_delay_ms);
   //AddCallerToFrom(snfDelayMs, sifDelayMs.bodyNode);  //Dependency
   AddCallerToFrom(H, snfDelayMs.BodyNode);  //Require H
 

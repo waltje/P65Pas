@@ -734,8 +734,6 @@ begin
 //  xVar.adicPar.hasInit := false;
   xVar.storage := stRamFix;  //The most common storage for variables
 
-  xVar.elements := TAstElements.Create(true);   //A real variable needs this.
-
   curNode := TreeElems.curNode;   //Save current location
   TreeElems.openElement(curCodCont.Parent);
   TreeElems.AddElement(xVar, curCodCont.Index);  //Add before the cntBody.
@@ -815,65 +813,76 @@ function TCompilerBase.AddFunctionUNI(funName: string; retTyp: TEleTypeDec;
 in Implementation section) and add it to the Syntax Tree in the current node.
 - addParam -> Indicates whether the parameters will be created as variables. }
 var
-  xfun: TEleFunDec;
+  fundec: TEleFunDec;
 begin
-  xfun := TEleFunDec.Create;
-  xfun.name:= funName;
-  xfun.retType := retTyp;
+  fundec := TEleFunDec.Create;
+  fundec.name:= funName;
+  fundec.retType := retTyp;
 
-  xfun.srcDec := srcPos;  //Toma ubicación en el código
-  xfun.pars := pars;      //Copy parameters
-  xfun.IsInterrupt := Interrup;
+  fundec.srcDec := srcPos;  //Toma ubicación en el código
+  fundec.pars := pars;      //Copy parameters
+  fundec.IsInterrupt := Interrup;
   //La validación de duplicidad no se puede hacer hasta tener los parámetros.
-  TreeElems.AddElementAndOpen(xfun);  //Se abre un nuevo espacio de nombres
-  Result := xfun;
+  TreeElems.AddElementAndOpen(fundec);  //Se abre un nuevo espacio de nombres
+  Result := fundec;
   //Crea parámetros en el nuevo espacio de nombres de la función
-  if addParam then CreateFunctionParams(xfun.pars);
+  if addParam then CreateFunctionParams(fundec.pars);
 end;
 function TCompilerBase.AddFunctionDEC(funName: string; retTyp: TEleTypeDec;
   const srcPos: TSrcPos; const pars: TParamFuncArray; Interrup: boolean): TEleFunDec;
 {Create a new function, in DECLARATION mode (Forward or Interface) and add it
 to the Syntax Tree in the current node. No new node is opened.}
 var
-  xfundec: TEleFunDec;
+  fundec: TEleFunDec;
 begin
-  xfundec := TEleFunDec.Create;
-  xfundec.name:= funName;
-  xfundec.retType := retTyp;
+  fundec := TEleFunDec.Create;
+  fundec.name:= funName;
+  fundec.retType := retTyp;
 //  xfun.ClearParams;  //Not necessary.
 
-  xfundec.srcDec := srcPos;   //Toma ubicación en el código
-  xfundec.implem := nil;  //Not yet implemented
-  xfundec.pars := pars;   //Copy parameters
-  xfundec.IsInterrupt := Interrup;
-  TreeElems.AddElement(xfundec);  //Doesn't open the element
-  Result := xfundec;
+  fundec.srcDec := srcPos;   //Toma ubicación en el código
+  fundec.implem := nil;  //Not yet implemented
+  fundec.pars := pars;   //Copy parameters
+  fundec.IsInterrupt := Interrup;
+//  TreeElems.AddElement(fundec);  //Doesn't open the element
+  Result := fundec;
   //Note that variables for parameters are not created here.
+
+  //TreeElems.AddElementAndOpen(fundec);  //Doesn't open the element
+  TreeElems.AddElement(fundec);
+  TreeElems.curNode := fundec;  //Set new Current node.
+
+  TreeElems.CloseElement;
+
+//  Result := fundec;
+//  //Parameters are always creadted in declaration.
+////  CreateFunctionParams(fundec.pars);
+
 end;
 function TCompilerBase.AddFunctionIMP(funName: string; retTyp: TEleTypeDec;
   const srcPos: TSrcPos; functDeclar: TEleFunDec; addParam: boolean): TEleFunImp;
 {Create a new function, in IMPLEMENTATION mode (Forward or Interface) and add it
 to the Syntax Tree in the current node. }
 var
-  xfun: TEleFunImp;
+  funimp: TEleFunImp;
   tmp: TAstListCallers;
 begin
-  xfun := CreateEleFunImp(funName, retTyp);
-  xfun.srcDec := srcPos;       //Take position in code.
-  functDeclar.implem := xfun;  //Complete reference
-  xfun.declar := functDeclar;  //Reference to declaration
-  xfun.pars := functDeclar.pars;     //Copy from declaration
-  xfun.IsInterrupt := functDeclar.IsInterrupt; //Copy from declaration
-  functDeclar.elements := xfun.elements;       //Apunta sus elementos a la implementación.
+  funimp := CreateEleFunImp(funName, retTyp);
+  funimp.srcDec := srcPos;       //Take position in code.
+  functDeclar.implem := funimp;  //Complete reference
+  funimp.declar := functDeclar;  //Reference to declaration
+  funimp.pars := functDeclar.pars;     //Copy from declaration
+  funimp.IsInterrupt := functDeclar.IsInterrupt; //Copy from declaration
+  functDeclar.elemImplem := funimp.elements;       //Apunta sus elementos a la implementación.
   //La validación de duplicidad no se puede hacer hasta tener los parámetros.
-  TreeElems.AddElementAndOpen(xfun);  //Se abre un nuevo espacio de nombres
-  Result := xfun;
+  TreeElems.AddElementAndOpen(funimp);  //Se abre un nuevo espacio de nombres
+  Result := funimp;
   //Crea parámetros en el nuevo espacio de nombres de la función
-  if addParam then CreateFunctionParams(xfun.pars);
+  if addParam then CreateFunctionParams(funimp.pars);
   //Pass calls list form declaration to implementation.
   tmp := functDeclar.lstCallers;
-  functDeclar.lstCallers := xfun.lstCallers;
-  xfun.lstCallers := tmp;
+  functDeclar.lstCallers := funimp.lstCallers;
+  funimp.lstCallers := tmp;
   //New calls will be added to implementation since now.
 end;
 //Containers
@@ -1133,35 +1142,33 @@ El objetivo final es determinar los accesos a las unidades.}
     cal , c: TAstEleCaller;
   begin
 //debugln('+Scanning in:'+nod.name);
-    if nod.elements<>nil then begin
-      for ele in nod.elements do begin
-        //Solo se explora a las unidades
-        if ele.idClass = eleUnit then begin
+    for ele in nod.elements do begin
+      //Solo se explora a las unidades
+      if ele.idClass = eleUnit then begin
 //debugln('  Unit:'+ele.name);
-          //"ele" es una unidad de "nod". Verifica si es usada
-          uni := TEleUnit(ele);    //Accede a la unidad.
-          uni.ReadInterfaceElements; //Accede a sus campos
-          {Buscamos por los elementos de la interfaz de la unidad para ver si son
-           usados}
-          for eleInter in uni.InterfaceElements do begin
+        //"ele" es una unidad de "nod". Verifica si es usada
+        uni := TEleUnit(ele);    //Accede a la unidad.
+        uni.ReadInterfaceElements; //Accede a sus campos
+        {Buscamos por los elementos de la interfaz de la unidad para ver si son
+         usados}
+        for eleInter in uni.InterfaceElements do begin
 //debugln('    Interface Elem:'+eleInter.name);
-            //Explora por los llamadores de este elemento.
-            for cal in eleInter.lstCallers do begin
-              elemUnit := cal.CallerUnit;   //Unidad o programa
-              if elemUnit = nod then begin
-                {Este llamador está contenido en "nod". Lo ponemos como llamador de
-                la unidad.}
-                c := AddCallerToFromCurr(uni);
-                c.caller := cal.caller;
-                c.curPos := cal.curPos;
+          //Explora por los llamadores de este elemento.
+          for cal in eleInter.lstCallers do begin
+            elemUnit := cal.CallerUnit;   //Unidad o programa
+            if elemUnit = nod then begin
+              {Este llamador está contenido en "nod". Lo ponemos como llamador de
+              la unidad.}
+              c := AddCallerToFromCurr(uni);
+              c.caller := cal.caller;
+              c.curPos := cal.curPos;
 //                debugln('      Added caller to %s from %s (%d,%d)',
 //                        [uni.name, c.curPos.fil, c.curPos.row, c.curPos.col]);
-              end;
             end;
           end;
-          //Ahora busca recursivamente, por si la unidad incluye a otras unidades
-          ScanUnits(ele);  //recursivo
         end;
+        //Ahora busca recursivamente, por si la unidad incluye a otras unidades
+        ScanUnits(ele);  //recursivo
       end;
     end;
   end;
@@ -1441,7 +1448,6 @@ var
   att: TAstElement;
 begin
   Op := UpCase(Op);
-  if OpType.elements = nil then exit(nil);
   for att in OpType.elements do begin
     if att.idClass in [eleFuncImp, eleFuncDec] then begin  //Only for methods
       xfun := TEleFunBase(att).declar;
@@ -1488,7 +1494,6 @@ var
   xfun: TEleFunDec;
   att: TAstElement;
 begin
-  if OpType.elements = nil then exit(nil);
   for att in OpType.elements do begin
     if att.idClass in [eleFuncImp, eleFuncDec] then begin  //Only for methods
       xfun := TEleFunBase(att).declar;
@@ -1510,7 +1515,6 @@ var
   xfun: TEleFunDec;
   att: TAstElement;
 begin
-  if OpType.elements = nil then exit(nil);
   for att in OpType.elements do begin
     if att.idClass in [eleFuncImp, eleFuncDec] then begin  //Only for methods
       xfun := TEleFunBase(att).declar;

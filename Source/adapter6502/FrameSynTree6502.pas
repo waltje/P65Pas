@@ -177,7 +177,6 @@ var
   nodElem: TTreeNode;
 begin
   //Agrega elementos
-  if curEle.elements = nil then exit;
   for elem in curEle.elements do begin
       nodElem := AddNodeTo(nodMain, elem);
       RefreshByDeclar(nodElem, elem);  //Llamada recursiva

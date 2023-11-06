@@ -1699,7 +1699,6 @@ begin
   //Add the new assigment before the main
   TreeElems.openElement(curContainer);
   TreeElems.AddElement(_setaux, 0);    //Add a new assigmente before
-  _setaux.elements := TAstElements.Create(true);  //Create list
   TreeElems.openElement(_setaux);
 
   //Add first operand (variable) of the assignment.
@@ -2332,7 +2331,6 @@ the current declaartion section.}
 var
   ele: TAstElement;
 begin
-  if node.elements= nil then exit;
   for ele in node.elements do begin
     //Explore the first level.
     if ele.idClass = eleTypeDec then begin  //It's a type, we need to move
