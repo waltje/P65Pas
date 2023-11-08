@@ -240,7 +240,7 @@ begin
   //Code subroutines
   for fun in usedFuncs do begin
     if fun.codSysInline <> nil then continue;  //No INLINE
-    ConstantFoldBody(fun.BodyNode);
+    ConstantFoldBody(fun.bodyImplem);
     if HayError then exit;   //Puede haber error
   end;
   //Code body
@@ -387,7 +387,7 @@ begin
   //Code subroutines
   for fun in usedFuncs do begin
     if fun.codSysInline <> nil then continue;  //No INLINE
-    ConstantPropagBody(fun.BodyNode);
+    ConstantPropagBody(fun.bodyImplem);
     if HayError then exit;   //Puede haber error
   end;
   //Code body
@@ -651,7 +651,7 @@ begin
   //Split subroutines
   for fun in usedFuncs do begin
     if fun.callType = ctUsrNormal then begin
-      PrepareBody(fun.BodyNode, fun.BodyNode);
+      PrepareBody(fun.bodyImplem, fun.bodyImplem);
       if HayError then exit;   //Puede haber error
     end;
   end;
@@ -701,8 +701,8 @@ begin
     end;
   end;
   //Split body
-//  bod := TreeElems.BodyNode;  //lee Nodo del cuerpo principal
-//  PrepareBody(bod, bod);
+  bod := TreeElems.BodyNode;  //lee Nodo del cuerpo principal
+  mirCont.ConvertBody(nil, bod);
 end;
 procedure TCompiler_PIC16.DoOptimize;
 {Usa la información del árbol de sintaxis, para optimizar su estructura con
@@ -922,7 +922,7 @@ begin
       //Compile used function in the current address.
       fun.adrr := pic.iRam;     //Actualiza la dirección final
       //Is a common function with body.
-      GenCodeFunction(fun.BodyNode);
+      GenCodeFunction(fun.bodyImplem);
       if HayError then exit;   //Puede haber error
       fun.coded := true;       //Marca como ya codficada en memoria.
       //Verifica si hace falta completar llamadas

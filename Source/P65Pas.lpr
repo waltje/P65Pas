@@ -15,7 +15,7 @@ uses
   adapter6502, FormAdapter6502, FrameStatist6502, FrameCfgAfterChg6502, FrameSynTree6502,
   FrameCfgCompiler6502, FrameCfgAsmOut6502, FormDebugger6502, FormRAMExplorer6502,
   {adapterKickc, FormAdapterKickc, }EditView, Compiler_PIC16, ParserASM_6502,
-  MirList, FrameMIR6502;
+  MirList, Analyzer, FrameMIR6502;
 
 {$R *.res}
 

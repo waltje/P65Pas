@@ -61,11 +61,12 @@ implementation
 
 { TfraMIR6502 }
 function TfraMIR6502.AddNodeTo(nodParent: TTreeNode; elem: TMirElement): TTreeNode;
-{Agrega un elemento a un noco.}
+{Agrega un elemento a un nodo.}
 var
   nod: TTreeNode;
 begin
   if elem = nil then begin
+    //Agrega un elemento con nombre "???" y sin ícono.
     nod := TreeView1.Items.AddChild(nodParent, '???');
     nod.Data := elem;
     Result := nod;
@@ -126,7 +127,7 @@ begin
   if elems = nil then exit;
   for elem in elems do begin
       nodElem := AddNodeTo(nodMain, elem);
-      if elem.mirType = mtyFunCall then begin  //Tiene nodos hijos
+      if elem.mirType = mtyFunDec then begin  //Tiene nodos hijos
          mirFunct:= TMirFunDec(elem);
          RefreshByDeclar(nodElem, mirFunct.instructions);  //Llamada recursiva
       //   nodElem.Expanded := true;
@@ -144,11 +145,11 @@ begin
 
   TreeView1.Items.BeginUpdate;
   TreeView1.Items.Clear;
-  nodMain := TreeView1.Items.AddChild(nil, '');
-  nodMain.ImageIndex := 1;
-  nodMain.SelectedIndex := 1;
-  //nodMain.Data := syntaxTree.main;  //Elemento raiz
-  RefreshByDeclar(nodMain, mirCont.mirElements);
+  //nodMain := TreeView1.Items.AddChild(nil, '');
+  //nodMain.ImageIndex := 1;
+  //nodMain.SelectedIndex := 1;
+  ////nodMain.Data := syntaxTree.main;  //Elemento raiz
+  RefreshByDeclar(nil, mirCont.mirElements);
   nodMain.Expanded := true;    //Expande nodo raiz
   TreeView1.Items.EndUpdate;
 end;

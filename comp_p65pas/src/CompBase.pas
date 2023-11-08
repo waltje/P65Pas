@@ -116,7 +116,7 @@ protected  //Elements creation
   function AddFunctionDEC(funName: string; retTyp: TEleTypeDec; const srcPos: TSrcPos;
                           const pars: TParamFuncArray; Interrup: boolean): TEleFunDec;
   function AddFunctionIMP(funName: string; retTyp: TEleTypeDec;
-    const srcPos: TSrcPos; functDeclar: TEleFunDec; addParam: boolean): TEleFunImp;
+    const srcPos: TSrcPos; funDeclar: TEleFunDec; addParam: boolean): TEleFunImp;
 protected  //Containers
   procedure RefreshAllElementLists;
   procedure RemoveUnusedFunc;
@@ -844,23 +844,15 @@ begin
   fundec.implem := nil;  //Not yet implemented
   fundec.pars := pars;   //Copy parameters
   fundec.IsInterrupt := Interrup;
-//  TreeElems.AddElement(fundec);  //Doesn't open the element
   Result := fundec;
-  //Note that variables for parameters are not created here.
-
-  //TreeElems.AddElementAndOpen(fundec);  //Doesn't open the element
   TreeElems.AddElement(fundec);
-  TreeElems.curNode := fundec;  //Set new Current node.
-
-  TreeElems.CloseElement;
-
-//  Result := fundec;
+//  TreeElems.AddElementAndOpen(fundec);
 //  //Parameters are always creadted in declaration.
-////  CreateFunctionParams(fundec.pars);
-
+//  CreateFunctionParams(fundec.pars);
+//  TreeElems.CloseElement;
 end;
 function TCompilerBase.AddFunctionIMP(funName: string; retTyp: TEleTypeDec;
-  const srcPos: TSrcPos; functDeclar: TEleFunDec; addParam: boolean): TEleFunImp;
+  const srcPos: TSrcPos; funDeclar: TEleFunDec; addParam: boolean): TEleFunImp;
 {Create a new function, in IMPLEMENTATION mode (Forward or Interface) and add it
 to the Syntax Tree in the current node. }
 var
@@ -869,21 +861,16 @@ var
 begin
   funimp := CreateEleFunImp(funName, retTyp);
   funimp.srcDec := srcPos;       //Take position in code.
-  functDeclar.implem := funimp;  //Complete reference
-  funimp.declar := functDeclar;  //Reference to declaration
-  funimp.pars := functDeclar.pars;     //Copy from declaration
-  funimp.IsInterrupt := functDeclar.IsInterrupt; //Copy from declaration
-  functDeclar.elemImplem := funimp.elements;       //Apunta sus elementos a la implementación.
+  funDeclar.implem := funimp;  //Complete reference
+  funimp.declar := funDeclar;  //Reference to declaration
+  funimp.pars := funDeclar.pars;     //Copy from declaration
+  funimp.IsInterrupt := funDeclar.IsInterrupt; //Copy from declaration
+  funDeclar.elemImplem := funimp.elements;       //Apunta sus elementos a la implementación.
   //La validación de duplicidad no se puede hacer hasta tener los parámetros.
   TreeElems.AddElementAndOpen(funimp);  //Se abre un nuevo espacio de nombres
   Result := funimp;
   //Crea parámetros en el nuevo espacio de nombres de la función
   if addParam then CreateFunctionParams(funimp.pars);
-  //Pass calls list form declaration to implementation.
-  tmp := functDeclar.lstCallers;
-  functDeclar.lstCallers := funimp.lstCallers;
-  funimp.lstCallers := tmp;
-  //New calls will be added to implementation since now.
 end;
 //Containers
 procedure TCompilerBase.RefreshAllElementLists;
@@ -2077,7 +2064,7 @@ and AddCallerToFromCurBody, to have more control on the types of elements added 
 "callers". }
 var
   fc: TAstEleCaller;
-  fun: TEleFunImp;
+  funimp: TEleFunImp;
   fundec: TEleFunDec;
 begin
   //Creates caller class.
@@ -2086,20 +2073,13 @@ begin
   fc.curPos := GetSrcPos;  //Can be changed later if not apply.
   if toElem.idClass = eleFuncImp then begin
     //For implementation of functions, the caller are added directly.
-    fun := TEleFunImp(toElem);
-    fun.lstCallers.Add(fc);
+    funimp := TEleFunImp(toElem);
+    //Declaration "funimp.declar" must always exist.
+    funimp.declar.lstCallers.Add(fc);
   end else if toElem.idClass = eleFuncDec then begin
-    {When functions have declaration (INTERFACE or FORWARD), the calls have been added
-    to declaration elements (because implementation could not exist yet) but when
-    implementation appears, all calls must be passed to implementation.}
+    {Functions declaration (INTERFACE or FORWARD), receives always the caller.}
     fundec := TEleFunDec(toElem);
-    if fundec.implem = nil then begin
-      //Not yet implemented
-      fundec.lstCallers.Add(fc);
-    end else begin
-      //Pass call to the function implementation.
-      fundec.implem.lstCallers.Add(fc);
-    end;
+    fundec.lstCallers.Add(fc);
   end else begin
     //Other elements
     toElem.lstCallers.Add(fc);

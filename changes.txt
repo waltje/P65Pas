@@ -1,3 +1,9 @@
+6/11/2023
+- Making TAstElement.elements always created for all nodes.
+
+4/11/2023
+- Making TEleFunDec the main class for functions instead of TEleFunImp.
+
 1/11/2023
 - Refactoring some classes of XpresElemP65
 

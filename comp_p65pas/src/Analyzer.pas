@@ -1304,28 +1304,45 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
   begin
     Result := nil;
     uname := upcase(procName);
-    //Busca en el entorno para ver si está duplicada o con FORWARD
+    //Busca en el entorno para ver si está duplicada o con FORWARD.
+    //Se puede explorar todo el AST sin temor porque la función que estamos buscando
+    //aún no está registrada en el AST.
     for ele in TreeElems.curNode.elements do begin
       if ele.uname = uname then begin
         //Match the name.
         if ele.idClass = eleFuncDec then begin
-          //Must be a FORWARD
+          //Function with the same name. Can be a FORWARD or Overload.
           fundec := TEleFunDec(ele);
-          //if fun.IsForward ?
           if fundec.SameParamsType(pars) then begin
-            Result := fundec;  //Return FORWARD function
+            //Have the same name and parameters type
+            if fundec.IsForward then begin
+              //Definitely have to be a FORWARD.
+              if fundec.SameParamsName(pars) then begin
+                //This is the expected.
+                Result := fundec;  //Return FORWARD function
+              end else begin
+                GenError('Implementation of "%s" needs to have the same parameters name.', [uname]);
+                exit;
+              end;
+            end else begin
+              GenError('Function "%s" already defined', [uname]);
+              exit;
+            end;
+          end else begin
+            //Must be a function overload.
           end;
           //Continue exploring to validate
         end else if ele.idClass = eleFuncImp then begin
-          //Para las funciones, se debe comparar los parámetros
-          fun := TEleFunImp(ele);
-          if fun.SameParamsType(pars) then begin
-            //Is not FORWARD, must be duplicated:
-            GenError(ER_DUPLIC_FUNC_,[procName], srcPos);
-            exit;
-          end;
+          //We don't need check implementations. They have been checked before.
+          ////Para las funciones, se debe comparar los parámetros
+          //fun := TEleFunImp(ele);
+          //if fun.SameParamsType(pars) then begin
+          //  //Is not FORWARD, must be duplicated:
+          //  GenError(ER_DUPLIC_FUNC_,[procName], srcPos);
+          //  exit;
+          //end;
         end else begin
-          //The same name of other element, is conflict.
+          //The same name of other element (not a function), is conflict.
           GenError('Identifier "%s" already defined', [uname]);
           exit;
         end;
