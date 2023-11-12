@@ -752,21 +752,6 @@ type  //Declaration elements (functions)
     retType    : TEleTypeDec;  //Type returned
     IsInterrupt: boolean;      //Indicates the function is an ISR
     IsForward  : boolean;      //Identifies a forward declaration.
-  public  //Operator
-    operTyp    : TOperatorType; //Operand type
-    oper       : string;   //Operator associated to the function when it works as a method.
-    {Note that the precedence of the operators, is fixed and depends only of operator.}
-  public  //Flags for operators
-    fConmutat  : boolean;      //Represents a conmutative binary operator.
-    getset     : TFunGetset;   //Indicates if function is getter or setter.
-    funset     : TEleFunDec;  //Reference to related setter when this function is getter.
-    funget     : TEleFunDec;  //Reference to related getter when this function is setter.
-  public  //References
-    callType    : TCallType;    //How to call the function.
-    //Callback to SIF Routine when callType is ctSysInline.
-    codSysInline: TCodSysInline;
-    //Callback to SNF Routine when callType is ctSysNormal.
-    codSysNormal: TCodSysNormal;
   public  //Parameters management
     pars       : TParamFuncArray; //parámetros de entrada
     procedure ClearParams;
@@ -795,8 +780,14 @@ type  //Declaration elements (functions)
   end;
 
   { TEleFunDec }
-  {Represent a function declaration or header (INTERFACE o FORWARD).
-  Basically what we store here is a reference to the implementation.}
+  {This element represents:
+   - A single function declaration. When declaration includes the implementation too,like
+   is common in a Pascal program:
+   - A header declaration with separated implementation. Like it's used in INTERFACE
+   section of a unit or a FORWARD declaration.
+   When the declaration have a separated implementation. Most of the attributes are placed
+   here.
+  }
   TEleFunDec = class(TEleFunBase)
   public  //Main attributes
     adrr   : integer;  //Physical address where function is compiled.
@@ -808,6 +799,22 @@ type  //Declaration elements (functions)
 public mirFunDec: TObject;  //Formalmente debe ser TMirFunDec, pero se pone TObject para no generar referencias circulares.
   public  //Declaration
     function HasImplem: boolean; inline;
+  public  //Operator
+    operTyp    : TOperatorType; //Operand type
+    oper       : string;   //Operator associated to the function when it works as a method.
+    {Note that the precedence of the operators, is fixed in the compiler and depends
+    only of operator.}
+  public  //Flags for operators
+    fConmutat  : boolean;      //Represents a conmutative binary operator.
+    getset     : TFunGetset;   //Indicates if function is getter or setter.
+    funset     : TEleFunDec;  //Reference to related setter when this function is getter.
+    funget     : TEleFunDec;  //Reference to related getter when this function is setter.
+  public  //References
+    callType    : TCallType;    //How to call the function.
+    //Callback to SIF Routine when callType is ctSysInline.
+    codSysInline: TCodSysInline;
+    //Callback to SNF Routine when callType is ctSysNormal.
+    codSysNormal: TCodSysNormal;
   public  //References information
     function nCalled: integer; override; //número de llamadas
     function nLocalVars: integer;
@@ -836,7 +843,12 @@ public mirFunDec: TObject;  //Formalmente debe ser TMirFunDec, pero se pone TObj
   TEleFunDecs = specialize TFPGObjectList<TEleFunDec>;
 
   { TEleFunImp }
-  { Represents a function implementation (simple or inline) or a method (simple or inline). }
+  { Represents a function implementation (simple or inline) or a method (simple or inline).
+  This element only exists if a function declaration exists.
+  When this object exists, it contains some infromation that is not included in the
+  function declaration:
+    - The body of the function with all the instructions.
+    - The local variables. They are present are children elements.}
   TEleFunImp = class(TEleFunBase)
   public  //Initialization
     constructor Create; override;
@@ -2070,4 +2082,4 @@ begin
 end;
 
 end.
-//1871
+//2067

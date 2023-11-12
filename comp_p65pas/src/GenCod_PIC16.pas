@@ -7920,8 +7920,8 @@ begin
   {Create a body, to be uniform with normal function and for have a space where
   compile code and access to posible variables or other elements.}
   TreeElems.AddBodyAndOpen(SrcPos);  //Create body
-  funimp.callType     := ctSysInline; //INLINE function
-  funimp.codSysInline := codSys;  //Set routine to generate code o SIF routine.
+  Result.callType     := ctSysInline; //INLINE function
+  Result.codSysInline := codSys;  //Set routine to generate code o SIF routine.
   TreeElems.CloseElement;  //Close body
   TreeElems.CloseElement;  //Close function implementation
   curLocation := tmpLoc;   //Restore current location
@@ -7985,8 +7985,8 @@ begin
   compile code and access to posible variables or other elements.}
   TreeElems.AddBodyAndOpen(SrcPos);  //Create body
   //Set function created
-  funimp.callType     := ctSysNormal;
-  funimp.codSysNormal := codSys;  //Set routine to generate code SIF.
+  fundec.callType     := ctSysNormal;
+  fundec.codSysNormal := codSys;  //Set routine to generate code SIF.
   TreeElems.CloseElement;  //Close body
   TreeElems.CloseElement;  //Close function implementation
   curLocation := tmpLoc;   //Restore current location

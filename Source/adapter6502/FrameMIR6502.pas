@@ -97,11 +97,11 @@ procedure TfraMIR6502.TreeView1AdvancedCustomDrawItem(
   Stage: TCustomDrawStage; var PaintImages, DefaultDraw: Boolean);
 begin
   with TreeView1.Canvas do begin
-     if Node.Level = 0 then  begin
-       Font.Style := [fsBold, fsItalic];
-     end else begin
-       Font.Style := [];
-     end;
+     //if Node.Level = 0 then  begin
+     //  Font.Style := [fsBold, fsItalic];
+     //end else begin
+     //  Font.Style := [];
+     //end;
      font.Color:= FTextColor;
      DefaultDraw := true;   //Para que siga ejecutando la rutina de dibujo
   end;
@@ -129,7 +129,7 @@ begin
       nodElem := AddNodeTo(nodMain, elem);
       if elem.mirType = mtyFunDec then begin  //Tiene nodos hijos
          mirFunct:= TMirFunDec(elem);
-         RefreshByDeclar(nodElem, mirFunct.instructions);  //Llamada recursiva
+         RefreshByDeclar(nodElem, mirFunct.items);  //Llamada recursiva
       //   nodElem.Expanded := true;
       end;
       //Expande los Body
@@ -149,7 +149,7 @@ begin
   //nodMain.ImageIndex := 1;
   //nodMain.SelectedIndex := 1;
   ////nodMain.Data := syntaxTree.main;  //Elemento raiz
-  RefreshByDeclar(nil, mirCont.mirElements);
+  RefreshByDeclar(nil, mirCont.items);
   nodMain.Expanded := true;    //Expande nodo raiz
   TreeView1.Items.EndUpdate;
 end;

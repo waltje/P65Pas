@@ -63,7 +63,7 @@ procedure TCompiler_PIC16.ConstantFoldExpr(eleExp: TEleExpress);
 - Constant folding, for expression nodes, that returns constants.
 Note the similarity of this method with GenCodeExpr().}
 var
-  funcBase: TEleFunBase;
+  funcBase: TEleFunDec;
   ele: TAstElement;
   parExpr: TEleExpress;
 begin
@@ -523,7 +523,7 @@ Parameters:
   for each parameter.}
   var
     parExp, new_set: TEleExpress;
-    funcBase: TEleFunBase;
+    funcBase: TEleFunDec;
     ipar: Integer;
     par: TParamFunc;
   begin
@@ -667,15 +667,15 @@ var
   elem : TAstElement;
   mirFunDec: TMirFunDec;
   astVarDec: TEleVarDec;
+  mirVarDec: TMirVarDec;
 begin
   //Agrega variables globales
   for xvar in TreeElems.AllVars do begin
     if xvar.Parent.idClass = eleFuncImp then continue;  //Las variables de funciones ya se crearon
 //debugln('Verificando: ' + xvar.name);
     if (xvar.nCalled>0) or xvar.required then begin
-      //Asigna una dirección válida para esta variable
-//debugln('  ubicando: ' + xvar.name);
-      mirCont.AddVarDec(nil, xvar);
+      mirVarDec := mirCont.AddVarDec(nil, xvar); //Agrega declaración en el MIR
+      xvar.mirVarDec := mirVarDec;  //Guarda referencia al MIR.;
     end;
   end;
 
@@ -683,13 +683,14 @@ begin
     if astFunDec.callType = ctUsrNormal then begin
       //Agrega al MIR y guarda referencia.
       mirFunDec := mirCont.AddFunDecUNF(astFunDec);
-      //astFunDec.declar.mirFunDec := mirFunDec;
+      astFunDec.mirFunDec := mirFunDec;  //Guarda referencia al MIR.
       //Explora sus elementos internos.
       for elem In astFunDec.elements do begin
           if elem.idClass = eleVarDec then begin
             astVarDec := TEleVarDec(elem);  //Guarda referencia
             //Agrega al MIR y guarda referencia.
-            astVarDec.mirVarDec := mirCont.AddVarDec(mirFunDec, astVarDec);
+            mirVarDec := mirCont.AddVarDec(mirFunDec, astVarDec);
+            astVarDec.mirVarDec := mirVarDec;  //Guarda referencia al MIR.
           end else if elem.idClass = eleBody then begin
             mirCont.ConvertBody(mirFunDec, TEleBody(elem));
             //if HayError then exit;   //Puede haber error
