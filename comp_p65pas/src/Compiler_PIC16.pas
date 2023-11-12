@@ -69,7 +69,7 @@ var
 begin
   if eleExp.opType = otFunct then begin
     //It's an expression. There should be a function
-    funcBase := eleExp.rfun;
+    funcBase := eleExp.fundec;
     if funcBase.callType = ctSysInline then begin
       //Only INLINE functions can returns constants.
       if funcBase.idClass = eleFuncDec then begin
@@ -426,7 +426,7 @@ Parameters:
       _setaux.Destroy;    //We destroy because it hasn't been included in the AST.
       exit(nil);
     end;
-    _setaux.rfun := funSet;
+    _setaux.fundec := funSet;
 
     //Add the new assigment before the main
     TreeElems.openElement(curContainer);
@@ -455,12 +455,12 @@ Parameters:
     par: TAstElement;
   begin
     Result := false;
-    if TEleExpress(setMethod).rfun.getset <> gsSetInSimple then exit;
+    if TEleExpress(setMethod).fundec.getset <> gsSetInSimple then exit;
     //Split expressions in second operand of assignment.
     Op2 := TEleExpress(setMethod.elements[1]);  //Takes assignment source.
     if (Op2.opType = otFunct) then begin
       //Op2 is a function.
-      if Op2.rfun.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
+      if Op2.fundec.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
         {IT's the form:
              x := func(x,y);
                   \_______/
@@ -468,7 +468,7 @@ Parameters:
         }
         //Generates an asignment for each parameter.
         SplitProcCall(curContainer, Op2);
-      end else if Op2.rfun.callType = ctSysInline then begin       //INLINE function
+      end else if Op2.fundec.callType = ctSysInline then begin       //INLINE function
         {IT's the form:
              x := A + B
                   \___/
@@ -501,11 +501,11 @@ Parameters:
     if (expMethod.opType = otFunct) then begin  //Neither variables nor constants.
       {We expect parameters should be simple operands (Constant or variables)
       otherwise we will move them to a separate assignment}
-      if expMethod.rfun.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
+      if expMethod.fundec.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
 
         //Generates an asignment for each parameter.
         SplitProcCall(curContainer, expMethod);
-      end else if expMethod.rfun.callType = ctSysInline then begin  //Like =, >, and, ...
+      end else if expMethod.fundec.callType = ctSysInline then begin  //Like =, >, and, ...
         for par in expMethod.elements do begin
           parExp := TEleExpress(par);
           if parExp.opType = otFunct then begin
@@ -525,18 +525,18 @@ Parameters:
     parExp, new_set: TEleExpress;
     funcBase: TEleFunDec;
     ipar: Integer;
-    par: TParamFunc;
+    par: TAstParam;
   begin
     Result := false;
     if expMethod.opType <> otFunct then exit;   //Not a fucntion call
-    funcBase := expMethod.rfun;    //Base function reference
+    funcBase := expMethod.fundec;    //Base function reference
     if funcBase.codSysInline=nil then begin   //Not INLINE
       {Move all parameters (children nodes) to a separate assignment}
       ipar := 0;  //Parameter index
       while expMethod.elements.Count>0 do begin  //While remain parameters.
         parExp := TEleExpress(expMethod.elements[0]);  //Take parameter element
         par := funcBase.pars[ipar];
-        new_set := MoveParamToAssign(curContainer, parExp, par.pvar);
+        new_set := MoveParamToAssign(curContainer, parExp, par.vardec);
         if HayError then exit;
         SplitSet(curContainer, new_set);  //Check if it's needed split the new _set() created.
         Result := true;
@@ -559,30 +559,30 @@ begin
       _set := sen.elements[0];  //Takes the _set method.
       Op1 := TEleExpress(_set.elements[0]);  //Takes assigment target.
       Op2 := TEleExpress(_set.elements[1]);  //Takes assigment target.
-      if (Op1.opType = otFunct) and (Op1.rfun.getset = gsGetInItem) then begin
+      if (Op1.opType = otFunct) and (Op1.fundec.getset = gsGetInItem) then begin
         //It's a _set() for a _getitem() INLINE assignment for array.
-        if Op1.rfun.funset = nil then begin
+        if Op1.fundec.funset = nil then begin
           GenError('Cannot locate the setter for this type.');
           exit;
         end;
         //Convert getter() to setter().
-        Op1.rfun := Op1.rfun.funset;     //Must be gsSetInItem
-        Op1.name := Op1.rfun.name;
-        Op1.Typ  := Op1.rfun.retType;
+        Op1.fundec := Op1.fundec.funset;     //Must be gsSetInItem
+        Op1.name := Op1.fundec.name;
+        Op1.Typ  := Op1.fundec.retType;
         //Move third parameter to _setitem() and locate it at the Top
         TreeElems.ChangeParentTo(Op1, Op2);
         TreeElems.ChangeParentTo(Op1.Parent.Parent, Op1);
         _set.Parent.elements.Remove(_set);
-      end else if (Op1.opType = otFunct) and (Op1.rfun.getset = gsGetInPtr) then begin
+      end else if (Op1.opType = otFunct) and (Op1.fundec.getset = gsGetInPtr) then begin
         //It's a _set() for a _getptr() INLINE assignment for POINTER.
-        if Op1.rfun.funset = nil then begin
+        if Op1.fundec.funset = nil then begin
           GenError('Cannot locate the setter for this type.');
           exit;
         end;
         //Convert getter() to setter().
-        Op1.rfun := Op1.rfun.funset;     //Must be gsSetInPtr;
-        Op1.name := Op1.rfun.name;
-        Op1.Typ  := Op1.rfun.retType;
+        Op1.fundec := Op1.fundec.funset;     //Must be gsSetInPtr;
+        Op1.name := Op1.fundec.name;
+        Op1.Typ  := Op1.fundec.retType;
         //Move third parameter to _setptr() and locate it at the Top
         TreeElems.ChangeParentTo(Op1, Op2);
         TreeElems.ChangeParentTo(Op1.Parent.Parent, Op1);
@@ -696,6 +696,9 @@ begin
             //if HayError then exit;   //Puede haber error
           end;
       end;
+      //Actualizmos los parámetros MIR después de explorar los elementos
+      //internas AST (que incluye a los parámetros).
+      mirFunDec.ReadParamsFromAST(astFunDec);
     end else if astFunDec.callType = ctSysNormal then begin
       mirFunDec := mirCont.AddFunDecSNF(astFunDec);
       //System function doesn't have body.
@@ -1454,4 +1457,4 @@ begin
 end;
 
 end.
-
+//1457

@@ -48,7 +48,6 @@ type  //MIR declarations
   public
     constructor Create; virtual;
   end;
-  TMirVarDecs = specialize TFPGObjectList<TMirVarDec>;
 
   { TMirConDec }
   TMirConDec = Class(TMirElement)
@@ -59,13 +58,23 @@ type  //MIR declarations
     constructor Create; virtual;
   end;
 
+  TMirParam = object
+//    name    : string;      //Parameter name
+//    typ     : TEleTypeDec; //Reference to type
+    vardec  : TMirVarDec;  //Reference to variable used for this parameter
+//    srcPos  : TSrcPos;     //Parameter location.
+//    adicVar : TAdicVarDec; //Aditional option for "vardec".
+  end;
+  TMirParamArray = array of TMirParam;
+
   { TMirFunDec }
   TMirFunDec = Class(TMirElement)
-    pars     : TMirVarDecs;   //Reference to paramenters.
-    astFunDec: TEleFunDec;    //AST function.
-    //binOper  : char;          //Binary operator when it's associated to an operator.
-    items    : TMirElements;  //Instruction list.
-    ndecs    : Integer;       //Number of declarations in items list.
+    pars     : TMirParamArray; //Reference to paramenters.
+    astFunDec: TEleFunDec;     //AST function.
+    //binOper  : char;         //Binary operator when it's associated to an operator.
+    items    : TMirElements;   //Instruction list.
+    ndecs    : Integer;        //Number of declarations in items list.
+    procedure ReadParamsFromAST(astFunDec0: TEleFunDec);
     constructor Create; virtual;
     destructor Destroy; override;
   end;
@@ -138,6 +147,7 @@ type  //Main Container
       ): TMirAsgnFun;
     function AddAssignFun(mcont: TMirFunDec; const vdec: TMirVarDec;
       Op2: TEleExpress): TMirAsgnFun;
+
     function NewFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
     function AddFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
   public  //Reading from AST
@@ -199,17 +209,27 @@ constructor TMirConDec.Create;
 begin
   mirType := mtyConDec;
 end;
+procedure TMirFunDec.ReadParamsFromAST(astFunDec0: TEleFunDec);
+{Read parameters from an AST function declaration.}
+var
+  i: Integer;
+begin
+  //Add parameteres
+  SetLength(pars, length(astFunDec0.pars));
+  for i:=0 to High(astFunDec0.pars) do begin
+    pars[i].vardec := TMirVarDec(astFunDec0.pars[i].vardec.mirVarDec);
+
+  end;
+end;
 { TMirFunDec }
 constructor TMirFunDec.Create;
 begin
   mirType := mtyFunDec;
-  pars:= TMirVarDecs.Create(false);
   items:= TMirElements.Create(true);
 end;
 destructor TMirFunDec.Destroy;
 begin
   items.Destroy;
-  pars.Destroy;
   inherited Destroy;
 end;
 { TMirAsgn }
@@ -325,6 +345,7 @@ begin
   items.Add(Result);
 end;
 function TMirList.AddFunDecUNF(funcName0: TEleFunDec): TMirFunDec;
+{Add a User Normal Function to the MIR list.}
 begin
   Result := TMirFunDec.Create;
   Result.text := funcName0.name;
@@ -355,7 +376,7 @@ procedure GetMIRFunctionFromASTExpress(out MirFunc: TMirFunction;
 begin
   MirFunc.Text := AstOper.name;
   if AstOper.opType = otFunct then begin
-    MirFunc.funDec := TMirFunDec(AstOper.rfun.mirFunDec);
+    MirFunc.funDec := TMirFunDec(AstOper.fundec.mirFunDec);
     MirFunc.astOperand := AstOper;
   end else begin
     MirFunc.funDec := nil;
@@ -425,6 +446,7 @@ begin
   //Add to list
   if mcont=nil then items.Add(Result) else mcont.items.Add(Result);
 end;
+
 function TMirList.NewFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
 var
   astPar: TAstElement;
@@ -460,6 +482,38 @@ Parameters:
   sntBlock  -> Block of code where are the sentences to need be prepared. It's the
                same of "cntFunct" except when "block" is nested like in a condiitonal.
 }
+  procedure AddAssign(const vardec: TMirVarDec;
+    Op2: TEleExpress);
+  {General function to add a new assignment from a var declaration and an AST expression
+  element.}
+  begin
+    if (Op2.opType = otVariab) then begin       //x := var1
+      AddAssignSim(cntFunct, vardec, Op2);
+    end else if (Op2.opType = otConst) then begin //x := CONS1
+      AddAssignSim(cntFunct, vardec, Op2);
+    end else if (Op2.opType = otFunct) then begin
+      //Op2 is a function: 2 or more operands
+      if Op2.fundec.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
+//        {IT's the form:
+//             x := func(x,y);
+//                  \_______/
+//                     Op2
+//        }
+//        //Generates an asignment for each parameter.
+//        SplitProcCall(curContainer, Op2);
+      end else if Op2.fundec.callType = ctSysInline then begin       //INLINE function
+        {IT's the form:
+             x := A + B
+                  \___/
+                   Op2
+        or:
+             x := A++        }
+        {We expect parameters A, B should be simple operands (Constant or variables)
+        otherwise we will move them to a separate assignment}
+        AddAssignFun(cntFunct, vardec, Op2);      //Create assignment in TAC format.
+      end;
+    end;
+  end;
 {  function MoveParamToAssign(curContainer: TAstElement; Op: TEleExpress;
                              parvar: TEleVarDec): TEleExpress;
   {Mueve el nodo especificado "Op", que representa a un parámetro de la función, a una
@@ -513,43 +567,13 @@ Parameters:
     vardec: TMirVarDec;
   begin
     Result := false;
-    if TEleExpress(setMethod).rfun.getset <> gsSetInSimple then exit;
+    if TEleExpress(setMethod).fundec.getset <> gsSetInSimple then exit;
     Op1 := TEleExpress(setMethod.elements[0]);  //Takes target.
     if Op1.opType <> otVariab then exit;
     //Split expressions in second operand of assignment.
     Op2 := TEleExpress(setMethod.elements[1]);  //Takes assignment source.
     vardec := TMirVarDec(Op1.rvar.mirVarDec);
-    if (Op2.opType = otVariab) then begin       //x := var1
-      AddAssignSim(cntFunct, vardec, Op2);
-    end else if (Op2.opType = otConst) then begin //x := CONS1
-      AddAssignSim(cntFunct, vardec, Op2);
-    end else if (Op2.opType = otFunct) then begin
-      //Op2 is a function: 2 or more operands
-      if Op2.rfun.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
-//        {IT's the form:
-//             x := func(x,y);
-//                  \_______/
-//                     Op2
-//        }
-//        //Generates an asignment for each parameter.
-//        SplitProcCall(curContainer, Op2);
-      end else if Op2.rfun.callType = ctSysInline then begin       //INLINE function
-        {IT's the form:
-             x := A + B
-                  \___/
-                   Op2
-        or:
-             x := A++        }
-        {We expect parameters A, B should be simple operands (Constant or variables)
-        otherwise we will move them to a separate assignment}
-        if Op2.elements.Count = 1 then begin   //x := func(1); or x := a++;
-          AddAssignSim(cntFunct, vardec, Op2);
-        end else begin  //2 or more paremeters
-          //Create assignment in TAC format.
-          AddAssignFun(cntFunct, vardec, Op2);
-        end;
-      end;
-    end;
+    AddAssign(vardec, Op2);
   end;
 {  function SplitExpress(curContainer: TAstElement; expMethod: TEleExpress): boolean;
   {Verify if an expression has more than three operands. If so then
@@ -584,36 +608,24 @@ Parameters:
   {Split a procedure (not INLINE) call instruction, inserting an assignment instruction
   for each parameter.}
   var
-    parExp, new_set, astPar: TEleExpress;
+    new_set, astPar: TEleExpress;
     fundec: TEleFunDec;
-    ipar, i: Integer;
-    par: TParamFunc;
+    i: Integer;
     mirfun: TMirFunCall;
+    vardec: TMirVarDec;
   begin
     Result := false;
     if expMethod.opType <> otFunct then exit;   //Not a fucntion call
-    fundec := expMethod.rfun;    //Base function reference
+    fundec := expMethod.fundec;    //Base function reference
     if fundec.codSysInline=nil then begin   //Not INLINE
       mirfun := NewFunCall(cntFunct, expMethod);
       {Move all parameters (children nodes) to a separate assignment}
-      for i:=0 to fundec.elements.Count-1 do begin
-        astPar := TEleExpress(fundec.elements[i]);
-        //mirfun.pars[i].varDec;
+      for i:=0 to expMethod.elements.Count-1 do begin
+        astPar := TEleExpress(expMethod.elements[i]);
+        vardec := mirfun.func.funDec.pars[i].vardec;
+        AddAssignSim(cntFunct, vardec, astPar); //???? Y no hay que buscar el método _set?
+
       end;
-//      while expMethod.elements.Count>0 do begin  //While remain parameters.
-//        parExp := TEleExpress(expMethod.elements[0]);  //Take parameter element
-//        par := fundec.pars[ipar];
-//        if parExp.opType = otFunct then begin
-//
-//        end else begin   //Simple parameter
-//
-//        end;
-//        new_set := MoveParamToAssign(curContainer, parExp, par.pvar);
-//        if HayError then exit;
-//        SplitSet(curContainer, new_set);  //Check if it's needed split the new _set() created.
-//        Result := true;
-//        inc(ipar);
-//      end;
       mirfun.UpdateText;              //Update label.
       //Add to list
       if cntFunct=nil then items.Add(mirfun) else cntFunct.items.Add(mirfun);
@@ -635,30 +647,30 @@ begin
 //      _set := sen.elements[0];  //Takes the _set method.
 //      Op1 := TEleExpress(_set.elements[0]);  //Takes assigment target.
 //      Op2 := TEleExpress(_set.elements[1]);  //Takes assigment target.
-//      if (Op1.opType = otFunct) and (Op1.rfun.getset = gsGetInItem) then begin
+//      if (Op1.opType = otFunct) and (Op1.fundec.getset = gsGetInItem) then begin
 //        //It's a _set() for a _getitem() INLINE assignment for array.
-//        if Op1.rfun.funset = nil then begin
+//        if Op1.fundec.funset = nil then begin
 //          GenError('Cannot locate the setter for this type.');
 //          exit;
 //        end;
 //        //Convert getter() to setter().
-//        Op1.rfun := Op1.rfun.funset;     //Must be gsSetInItem
-//        Op1.name := Op1.rfun.name;
-//        Op1.Typ  := Op1.rfun.retType;
+//        Op1.fundec := Op1.fundec.funset;     //Must be gsSetInItem
+//        Op1.name := Op1.fundec.name;
+//        Op1.Typ  := Op1.fundec.retType;
 //        //Move third parameter to _setitem() and locate it at the Top
 //        TreeElems.ChangeParentTo(Op1, Op2);
 //        TreeElems.ChangeParentTo(Op1.Parent.Parent, Op1);
 //        _set.Parent.elements.Remove(_set);
-//      end else if (Op1.opType = otFunct) and (Op1.rfun.getset = gsGetInPtr) then begin
+//      end else if (Op1.opType = otFunct) and (Op1.fundec.getset = gsGetInPtr) then begin
 //        //It's a _set() for a _getptr() INLINE assignment for POINTER.
-//        if Op1.rfun.funset = nil then begin
+//        if Op1.fundec.funset = nil then begin
 //          GenError('Cannot locate the setter for this type.');
 //          exit;
 //        end;
 //        //Convert getter() to setter().
-//        Op1.rfun := Op1.rfun.funset;     //Must be gsSetInPtr;
-//        Op1.name := Op1.rfun.name;
-//        Op1.Typ  := Op1.rfun.retType;
+//        Op1.fundec := Op1.fundec.funset;     //Must be gsSetInPtr;
+//        Op1.name := Op1.fundec.name;
+//        Op1.Typ  := Op1.fundec.retType;
 //        //Move third parameter to _setptr() and locate it at the Top
 //        TreeElems.ChangeParentTo(Op1, Op2);
 //        TreeElems.ChangeParentTo(Op1.Parent.Parent, Op1);

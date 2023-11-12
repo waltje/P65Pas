@@ -26,7 +26,7 @@ type
     procedure AnalyzeWHILE;
     procedure MoveInternalTypes(node: TAstElement; declarSec: TAstElement;
       declarPos: Integer);
-    procedure SetParameter(var funPar: TParamFunc; const name: string;
+    procedure SetParameter(var funPar: TAstParam; const name: string;
       const srcPos: TSrcPos; typ: TEleTypeDec; const adicVar: TAdicVarDec);
   protected
     function GetUnitDeclaration: boolean;
@@ -36,7 +36,7 @@ type
     procedure GetAdicVarDeclar(var varTyp: TEleTypeDec; out aditVar: TAdicVarDec;
       out mainTypCreated: TEleTypeDec);
     procedure ReadProcHeader(out procName: String; out retType: TEleTypeDec; out
-      srcPos: TSrcPos; var pars: TParamFuncArray; out IsInterrupt,
+      srcPos: TSrcPos; var pars: TAstParamArray; out IsInterrupt,
   IsForward: Boolean);
     procedure AnalyzeVarDeclar;
     procedure AnalyzeConstDeclar;
@@ -489,7 +489,7 @@ begin
     exit;
   end;
 end;
-procedure TAnalyzer.SetParameter(var funPar: TParamFunc;
+procedure TAnalyzer.SetParameter(var funPar: TAstParam;
     const name: string; const srcPos: TSrcPos; typ: TEleTypeDec; const adicVar: TAdicVarDec);
 begin
   funPar.name  := name;
@@ -498,12 +498,12 @@ begin
   funPar.adicVar := adicVar;
 end;
 procedure TAnalyzer.ReadProcHeader(out procName: String; out retType: TEleTypeDec;
-  out srcPos: TSrcPos; var pars: TParamFuncArray; out IsInterrupt, IsForward: Boolean);
+  out srcPos: TSrcPos; var pars: TAstParamArray; out IsInterrupt, IsForward: Boolean);
 {Hace el procesamiento del encabezado de la declaración de una función/procedimiento.
 Devuelve la referencia al objeto TxpEleFun creado, en "fun".
 Conviene separar el procesamiento del enzabezado, para poder usar esta rutina, también,
 en el procesamiento de unidades.}
-  procedure ReadFunctionParams(var funPars: TParamFuncArray);
+  procedure ReadFunctionParams(var funPars: TAstParamArray);
   //Lee la declaración de parámetros de una función.
   const
     BLOCK_SIZE = 5;  //Tamaño de bloque.
@@ -1234,7 +1234,7 @@ end;
 procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
 {Compila la declaración de procedimientos. Tanto procedimientos como funciones
  se manejan internamente como funciones.}
-  function FindProcInInterface(procName: string; const pars: TParamFuncArray;
+  function FindProcInInterface(procName: string; const pars: TAstParamArray;
                                const srcPos: TSrcPos): TEleFunDec;
   {Explore the current context to verify (and validate) the existence, in the INTERFACE
   section, of a function declared in the IMPLEMENTATION section.
@@ -1290,7 +1290,7 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
     end;
     //Doesn't found.
   end;
-  function FindProcAsForwawd(procName: string; const pars: TParamFuncArray;
+  function FindProcAsForwawd(procName: string; const pars: TAstParamArray;
                                const srcPos: TSrcPos): TEleFunDec;
   {Explore the current context to verify (and validate) the existence of a functon
   declared as FORWARD, of any ohter function (No FORWARD).
@@ -1357,7 +1357,7 @@ var
   procName, tokL: String;
   retType: TEleTypeDec;
   srcPos: TSrcPos;
-  pars: TParamFuncArray;
+  pars: TAstParamArray;
   adicVar: TAdicVarDec;
 begin
   //Verifica si estamos dentro de una declaración de objeto.
@@ -1711,7 +1711,7 @@ begin
     GenError('Undefined operation: %s %s %s', [Op.Typ.name, ':=', Op.Typ.name], Op.srcDec);
     exit(nil);
   end;
-  _setaux.rfun := funSet;
+  _setaux.fundec := funSet;
 
   //Add the new assigment before the main
   TreeElems.openElement(curContainer);
@@ -1954,7 +1954,7 @@ procedure TAnalyzer.AnalyzeFORwhile;
       GenError('Undefined operation: %s %s %s', [idx.Typ.name, '<', idx.Typ.name]);
       exit;
     end;
-    _lequ.rfun := funSet;
+    _lequ.fundec := funSet;
     //Add the new expression
     TreeElems.AddElementAndOpen(_lequ);
     //Create a new variable for the expression "i<..."
@@ -1983,7 +1983,7 @@ procedure TAnalyzer.AnalyzeFORwhile;
     TreeElems.AddElementSentAndOpen(GetSrcPos, sntProcCal);
     //Use reference sifFunInc" to access directly to function Inc().
     Op1 := CreateExpression(sifFunInc.name, sifFunInc.retType, otFunct, GetSrcPos);
-    Op1.rfun := sifFunInc;
+    Op1.fundec := sifFunInc;
     TreeElems.AddElementAndOpen(Op1);  //Open Inc()
     //Create a new variable for the expression "i<..."
     xvar := CreateExpression(idx.name, idx.Typ, otVariab, GetSrcPos);
@@ -2067,7 +2067,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
       GenError('Undefined operation: %s %s %s', [opType.name, opStr, opType.name]);
       exit(false);
     end;
-    _comp.rfun := funSet;
+    _comp.fundec := funSet;
     _comp.name := opStr;
     exit(true);
   end;
@@ -2174,7 +2174,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
     TreeElems.AddElementSentAndOpen(GetSrcPos, sntProcCal);
     //Use reference sifFunInc" to access directly to function Inc().
     Op1 := CreateExpression(sifFunInc.name, sifFunInc.retType, otFunct, GetSrcPos);
-    Op1.rfun := sifFunInc;
+    Op1.fundec := sifFunInc;
     TreeElems.AddElementAndOpen(Op1);  //Open Inc()
     //Create a new variable for the expression "i<..."
     xvar := CreateExpression(idx.name, idx.Typ, otVariab, GetSrcPos);
@@ -2487,7 +2487,7 @@ begin
           //Should be a procedure or function call.
           if ex.fcallOp then begin   //It comes from an operator
             //Only assignments ':=', '+=' ,'-=' is allowed.
-            if not (ex.rfun.getset in [gsSetInItem,gsSetInPtr,gsSetInSimple,gsSetOther]) then begin
+            if not (ex.fundec.getset in [gsSetInItem,gsSetInPtr,gsSetInSimple,gsSetOther]) then begin
                GenError('Expressions are not allowed here.', ex.srcDec);
             end;
           end else begin             //Should be a function call

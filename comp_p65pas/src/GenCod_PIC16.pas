@@ -60,12 +60,12 @@ type
       snfDelayMs:     TEleFunDec;
       snfBytDivByt8:  TEleFunDec;
       snfWrdDivWrd16: TEleFunDec;
-      procedure AddLocVar(var pars: TParamFuncArray; parName: string;
+      procedure AddLocVar(var pars: TAstParamArray; parName: string;
         const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
-      procedure AddParam(var pars: TParamFuncArray; parName: string;
+      procedure AddParam(var pars: TAstParamArray; parName: string;
         const srcPos: TSrcPos; typ0: TEleTypeDec; adicDec: TAdicDeclar);
       function AddSNFtoUnit(name: string; retType: TEleTypeDec;
-        const srcPos: TSrcPos; var pars: TParamFuncArray; codSys: TCodSysNormal
+        const srcPos: TSrcPos; var pars: TAstParamArray; codSys: TCodSysNormal
   ): TEleFunDec;
       procedure arrayHigh(fun: TEleExpress);
       procedure arrayLength(fun: TEleExpress);
@@ -105,7 +105,7 @@ type
         parType2: TEleTypeDec; retType: TEleTypeDec; pCompile: TCodSysInline
   ): TEleFunDec;
       function AddSIFtoUnit(name: string; retType: TEleTypeDec;
-        const srcPos: TSrcPos; const pars: TParamFuncArray;
+        const srcPos: TSrcPos; const pars: TAstParamArray;
   codSys: TCodSysInline): TEleFunDec;
       procedure DefineArray(etyp: TEleTypeDec);
       procedure DefinePointer(etyp: TEleTypeDec);
@@ -245,7 +245,7 @@ begin
   setFunct := TEleExpress(fun.Parent);
   if setFunct = nil then exit(false);
   if setFunct.opType <> otFunct then exit(false);
-  if setFunct.rfun.getset <> gsSetInSimple then exit(false);
+  if setFunct.fundec.getset <> gsSetInSimple then exit(false);
   target := TEleExpress(setFunct.elements[0]);  //Parameter C := A + B
   exit(true);
 end;
@@ -1291,8 +1291,8 @@ var
   m0, m1: integer;
   fac1,  fac2: TEleVarDec;
 begin
-    fac1 := fun.pars[0].pvar;
-    fac2 := fun.pars[1].pvar;
+    fac1 := fun.pars[0].vardec;
+    fac2 := fun.pars[1].vardec;
     PutLabel('__byt_mul_byt_16');
     //A*256 + X = FAC1 * FAC2
     _ldai($00);
@@ -1400,12 +1400,12 @@ begin
     //General case
     SetFunExpres(fun);
     _LDAi(parA.val);
-    _STA(fmul.pars[0].pvar.addr);
+    _STA(fmul.pars[0].vardec.addr);
     _LDA(parB.add);
-    _STA(fmul.pars[1].pvar.addr);
+    _STA(fmul.pars[1].vardec.addr);
 //    AddCallerToFromCurr(fmul);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[0].pvar);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[1].pvar);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[0].vardec);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[1].vardec);  //Declare use
     functCall(fmul, AddrUndef);   //Code the "JSR"
   end;
   stConst_Regist: begin  //la expresión p2 se evaluó y esta en A
@@ -1475,12 +1475,12 @@ begin
     //General case
     SetFunExpres(fun);
     //_LDAi(parA.val);
-    _STA(fmul.pars[0].pvar.addr);
+    _STA(fmul.pars[0].vardec.addr);
     _LDA(parA.val);
-    _STA(fmul.pars[1].pvar.addr);
+    _STA(fmul.pars[1].vardec.addr);
 //    AddCallerToFromCurr(fmul);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[0].pvar);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[1].pvar);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[0].vardec);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[1].vardec);  //Declare use
     functCall(fmul, AddrUndef);   //Code the "JSR"
   end;
   stRamFix_Const: begin
@@ -1491,23 +1491,23 @@ begin
   stRamFix_RamFix:begin
     SetFunExpres(fun);
     _LDA(parA.add);
-    _STA(fmul.pars[0].pvar.addr);
+    _STA(fmul.pars[0].vardec.addr);
     _LDA(parB.add);
-    _STA(fmul.pars[1].pvar.addr);
+    _STA(fmul.pars[1].vardec.addr);
 //    AddCallerToFromCurr(fmul);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[0].pvar);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[1].pvar);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[0].vardec);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[1].vardec);  //Declare use
     functCall(fmul, AddrUndef);   //Code the "JSR"
   end;
   stRamFix_Regist:begin   //la expresión p2 se evaluó y esta en A
     SetFunExpres(fun);
     //_LDA(parA.add);
-    _STA(fmul.pars[0].pvar.addr);
+    _STA(fmul.pars[0].vardec.addr);
     _LDA(parA.add);
-    _STA(fmul.pars[1].pvar.addr);
+    _STA(fmul.pars[1].vardec.addr);
 //    AddCallerToFromCurr(fmul);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[0].pvar);  //Declare use
-//    AddCallerToFromCurr(fmul.pars[1].pvar);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[0].vardec);  //Declare use
+//    AddCallerToFromCurr(fmul.pars[1].vardec);  //Declare use
     functCall(fmul, AddrUndef);   //Code the "JSR"
   end;
   stRegist_Const: begin   //la expresión p1 se evaluó y esta en A
@@ -4196,8 +4196,8 @@ procedure TGenCod.SNF_wrd_div_wrd_16(fun: TEleFunBase);
   var loop, skip: integer;
       Dividend, Divisor, Remainder: TEleVarDec;
 begin
-  Dividend  := fun.pars[0].pvar;
-  Divisor   := fun.pars[1].pvar;
+  Dividend  := fun.pars[0].vardec;
+  Divisor   := fun.pars[1].vardec;
   Remainder := TEleVarDec(fun.elements[2]);
   PutLabel('__word_div_word');
     _LDAi(0);
@@ -5292,7 +5292,7 @@ var
   elefun: TEleFunDec;
 begin
   par := TEleExpress(fun.elements[0]);  //Only one parameter
-  elefun := fun.rfun;  ////**** VErificar si es válido siempre.
+  elefun := fun.fundec;  ////**** VErificar si es válido siempre.
   if par.Typ = typByte then begin
     //El parámetro byte, debe estar en A
     if fun.opType=otFunct then begin
@@ -7570,8 +7570,8 @@ begin
   parA := TEleExpress(fun.elements[0]);  //Parameter A
   parB := TEleExpress(fun.elements[1]);  //Parameter B
   fdiv := snfWrdDivWrd16;
-  Dividend := fdiv.pars[0].pvar;
-  Divisor  := fdiv.pars[1].pvar;
+  Dividend := fdiv.pars[0].vardec;
+  Divisor  := fdiv.pars[1].vardec;
   if compMod = cmConsEval then begin
     if (parA.Sto = stConst) and (parB.Sto = stConst) then
       SetFunConst_word(fun, parA.val div parB.val);
@@ -7690,8 +7690,8 @@ begin
   parA := TEleExpress(fun.elements[0]);  //Parameter A
   parB := TEleExpress(fun.elements[1]);  //Parameter B
   fdiv := snfWrdDivWrd16;
-  Dividend := fdiv.pars[0].pvar;
-  Divisor  := fdiv.pars[1].pvar;
+  Dividend := fdiv.pars[0].vardec;
+  Divisor  := fdiv.pars[1].vardec;
   Remainder := TEleVarDec(fdiv.elements[2]);
   if compMod = cmConsEval then begin
     if (parA.Sto = stConst) and (parB.Sto = stConst) then
@@ -7863,7 +7863,7 @@ begin
   OnExprEnd   := @expr_End;
 
 end;
-procedure TGenCod.AddParam(var pars: TParamFuncArray; parName: string; const srcPos: TSrcPos;
+procedure TGenCod.AddParam(var pars: TAstParamArray; parName: string; const srcPos: TSrcPos;
                    typ0: TEleTypeDec; adicDec: TAdicDeclar);
 //Create a new parameter to the function.
 var
@@ -7879,7 +7879,7 @@ begin
   pars[n].adicVar.hasInit := false;
   pars[n].isLocVar := false;
 end;
-procedure TGenCod.AddLocVar(var pars: TParamFuncArray; parName: string; const srcPos: TSrcPos;
+procedure TGenCod.AddLocVar(var pars: TAstParamArray; parName: string; const srcPos: TSrcPos;
                    typ0: TEleTypeDec; adicDec: TAdicDeclar);
 //Create a new parameter to the function.
 var
@@ -7896,7 +7896,7 @@ begin
   pars[n].isLocVar := true;
 end;
 function TGenCod.AddSIFtoUnit(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
-               const pars: TParamFuncArray; codSys: TCodSysInline): TEleFunDec;
+               const pars: TAstParamArray; codSys: TCodSysInline): TEleFunDec;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
    pars   -> Array of parameters for the function to be created.
@@ -7927,14 +7927,14 @@ begin
   curLocation := tmpLoc;   //Restore current location
 end;
 function TGenCod.AddSNFtoUnit(name: string; retType: TEleTypeDec; const srcPos: TSrcPos;
-               var pars: TParamFuncArray; codSys: TCodSysNormal): TEleFunDec;
+               var pars: TAstParamArray; codSys: TCodSysNormal): TEleFunDec;
 {Create a new system function in the current element of the Syntax Tree.
  Returns the reference to the function created.
    pars   -> Array of parameters for the function to be created.
    codSys -> SIF Routine or the the routine to generate de code.
 }
 var
-  local_vars: TParamFuncArray;   //Array for local variables
+  local_vars: TAstParamArray;   //Array for local variables
 
   procedure extract_local_vars;
   //Extract the local variables from "pars" to "local_vars"
@@ -7979,7 +7979,7 @@ begin
     locvar.storage := stRamFix;
     locvar.adicPar := local_vars[i].adicVar;
     TreeElems.CloseElement;  //Close variable
-    local_vars[i].pvar := locvar;  //Keep reference
+    local_vars[i].vardec := locvar;  //Keep reference
   end;
   {Create a body, to be uniform with normal function and for have a space where
   compile code and access to posible variables or other elements.}
@@ -7992,7 +7992,7 @@ begin
   curLocation := tmpLoc;   //Restore current location
   //Add callers to local variables created. Must be done after creating the body.
   for i:=0 to high(local_vars) do begin
-    locvar := local_vars[i].pvar;
+    locvar := local_vars[i].vardec;
     AddCallerToFrom(locvar, funimp.BodyNode);
   end;
   exit(fundec);
@@ -8008,7 +8008,7 @@ function TGenCod.CreateInUOMethod(
  the AST.
  Returns the reference to the function created.}
 var
-  pars: TParamFuncArray;     //Array of parameters
+  pars: TAstParamArray;     //Array of parameters
 begin
   setlength(pars, 0);        //Reset parameters
   AddParam(pars, 'b', srcPosNull, clsType, decNone);  //Base object
@@ -8035,7 +8035,7 @@ function TGenCod.CreateInBOMethod(
  the AST. If "opr" is null, just create a method without operator.
  Returns the reference to the function created.}
 var
-  pars: TParamFuncArray;     //Array of parameters
+  pars: TAstParamArray;     //Array of parameters
 begin
   setlength(pars, 0);        //Reset parameters
   AddParam(pars, 'b', srcPosNull, clsType, decNone);  //Base object
@@ -8062,7 +8062,7 @@ function TGenCod.CreateInTerMethod(clsType: TEleTypeDec;
  the AST.
  Returns the reference to the function created.}
 var
-  pars: TParamFuncArray;     //Array of parameters
+  pars: TAstParamArray;     //Array of parameters
 begin
   setlength(pars, 0);        //Reset parameters
   AddParam(pars, 'b', srcPosNull, clsType, decNone);  //Base object
@@ -8311,7 +8311,7 @@ end;
 procedure TGenCod.CreateTripletOperations;
 var
   f: TEleFunDec;
-  pars: TParamFuncArray;  //Array of parameters
+  pars: TAstParamArray;  //Array of parameters
 begin
   TreeElems.OpenElement(typTriplet);
   f:=CreateInBOMethod(typTriplet, ':=', '_set', typTriplet, typNull, @SIF_triplet_asig_triplet);
@@ -8341,7 +8341,7 @@ procedure TGenCod.CreateSystemElements;
 {Initialize the system elements. Must be executed just one time when compiling.}
 var
   uni: TEleUnit;
-  pars: TParamFuncArray;  //Array of parameters
+  pars: TAstParamArray;  //Array of parameters
   f, sifDelayMs, sifWord: TEleFunDec;
 begin
   //////// Funciones del sistema ////////////

@@ -87,7 +87,7 @@ type  //Abstract Syntax Tree
     function GetElementAt(posXY: TPoint): TAstElement;
     function GetElementCalledAt(const srcPos: TSrcPos): TAstElement;
     function GetELementDeclaredAt(const srcPos: TSrcPos): TAstElement;
-    function FunctionExistInCur(funName: string; const pars: TParamFuncArray
+    function FunctionExistInCur(funName: string; const pars: TAstParamArray
       ): boolean;
   public  //Debug
     procedure print();  //Show the AST
@@ -611,7 +611,7 @@ begin
   Result := res;
 end;
 function TAstTree.FunctionExistInCur(funName: string;
-  const pars: TParamFuncArray): boolean;
+  const pars: TAstParamArray): boolean;
 {Indica si la función definida por el nombre y parámetros, existe en el nodo actual.
 La búsqueda se hace bajo la consideración de que dos funciones son iguales si tiene el
 mismo nombre y los mismos tipos de parámetros.}

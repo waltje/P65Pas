@@ -75,7 +75,7 @@ protected  //Parser routines
     tokcad: string);
   function CaptureTok(ctok: string): boolean;
   function CaptureStr(cstr: string): boolean;
-  procedure CaptureParams(out funPars: TParamFuncArray);
+  procedure CaptureParams(out funPars: TAstParamArray);
 protected  //Flags for boolean type.
   {These variables are reset in the procedures: SetFun<XXX>. They contains the state of
   the Register/Status-flags if the last UOR or BOR is executed. }
@@ -109,12 +109,12 @@ protected  //Elements creation
   function OpenTypeDec(const srcPos: TSrcPos; tname: string; tsize: word;
     catType: TCatType; group: TTypeGroup; location: TTypeLocat): TEleTypeDec;
   procedure CloseTypeDec(typeDec: TEleTypeDec);
-  procedure CreateFunctionParams(var funPars: TParamFuncArray);
+  procedure CreateFunctionParams(var funPars: TAstParamArray);
   function AddFunctionUNI(funName: string; retTyp: TEleTypeDec;
-    const srcPos: TSrcPos; const pars: TParamFuncArray; Interrup: boolean;
+    const srcPos: TSrcPos; const pars: TAstParamArray; Interrup: boolean;
   addParam: boolean): TEleFunDec;
   function AddFunctionDEC(funName: string; retTyp: TEleTypeDec; const srcPos: TSrcPos;
-                          const pars: TParamFuncArray; Interrup: boolean): TEleFunDec;
+                          const pars: TAstParamArray; Interrup: boolean): TEleFunDec;
   function AddFunctionIMP(funName: string; retTyp: TEleTypeDec;
     const srcPos: TSrcPos; funDeclar: TEleFunDec; addParam: boolean): TEleFunImp;
 protected  //Containers
@@ -423,7 +423,7 @@ begin
   Next;
   exit(true);
 end;
-procedure TCompilerBase.CaptureParams(out funPars: TParamFuncArray);
+procedure TCompilerBase.CaptureParams(out funPars: TAstParamArray);
 {Lee los parámetros (tipo) con la que una función es llamada. EL resultado lo
 devuelve en "funPars". Solo actualiza el campo de tipo de "funPars".
 Notar la similitud de este procedimiento con la rutina implementada en ReadProcHeader()
@@ -742,12 +742,12 @@ begin
   Result       := xVar;
 
 end;
-procedure TCompilerBase.CreateFunctionParams(var funPars: TParamFuncArray);
+procedure TCompilerBase.CreateFunctionParams(var funPars: TAstParamArray);
 {Crea los parámetros de una función como variables globales, a partir de un arreglo
-TParamFunc. }
+TAstParam. }
 var
   i: Integer;
-  par: TParamFunc;
+  par: TAstParam;
   xvar: TEleVarDec;
   regAused: boolean = false;
   regXused: boolean = false;
@@ -803,11 +803,11 @@ begin
       end;
       end;
       //Actualiza referencia a la variable que almacena el parámetro.
-      funPars[i].pvar := xvar;
+      funPars[i].vardec := xvar;
   end;
 end;
 function TCompilerBase.AddFunctionUNI(funName: string; retTyp: TEleTypeDec;
-  const srcPos: TSrcPos; const pars: TParamFuncArray; Interrup: boolean;
+  const srcPos: TSrcPos; const pars: TAstParamArray; Interrup: boolean;
   addParam: boolean): TEleFunDec;
 {Create a new function, in normal mode (In the Main program or a like a private function
 in Implementation section) and add it to the Syntax Tree in the current node.
@@ -829,7 +829,7 @@ begin
   if addParam then CreateFunctionParams(fundec.pars);
 end;
 function TCompilerBase.AddFunctionDEC(funName: string; retTyp: TEleTypeDec;
-  const srcPos: TSrcPos; const pars: TParamFuncArray; Interrup: boolean): TEleFunDec;
+  const srcPos: TSrcPos; const pars: TAstParamArray; Interrup: boolean): TEleFunDec;
 {Create a new function, in DECLARATION mode (Forward or Interface) and add it
 to the Syntax Tree in the current node. No new node is opened.}
 var
@@ -1401,7 +1401,7 @@ begin
   {$IFDEF LogExpres} Op.txt:= cIn.tok; {$ENDIF}   //toma el texto
   if allowChar and (length(str) = 1) then begin
     //De un caracter. Se asume de tipo Char
-    Op1 := AddExpressAndOpen(token, typChar, otConst, srcPos);
+    Op1 := AddExpressAndOpen(''''+str+'''', typChar, otConst, srcPos);
     Op1.value.ValInt := ord(STR[1]);
     Op1.evaluated := true;
   end else begin
@@ -1665,7 +1665,7 @@ in this function.
       end;
     end;
   end;
-  function ResolveFunction(const pars: TParamFuncArray;   //Parameters
+  function ResolveFunction(const pars: TAstParamArray;   //Parameters
            xfun: TEleFunDec;   //First function found in the Syntax Tree.
            searchState: TAstFindState): TEleFunDec;
   {Identifies the function that match with the parameters}
@@ -1695,7 +1695,7 @@ var
   level: Integer;
   ele, field: TAstElement;
   posCall: TSrcPos;
-  pars: TParamFuncArray;
+  pars: TAstParamArray;
   xfun: TEleFunDec;
   findState: TAstFindState;
   upTok: String;
@@ -1761,7 +1761,7 @@ begin
       if HayError then exit(nil);
       AddCallerToFromCurr(xfun).curPos := posCall;  {Fix call position, otherwise will be pointing to the
                                    end of parameters}
-      Op1.rfun := xfun;  //We can now set the final function.
+      Op1.fundec := xfun;  //We can now set the final function.
     end else begin
       //Operand expected
       GenError(ER_OPERAN_EXPEC);
@@ -1857,7 +1857,7 @@ begin
         eleMeth := CreateExpression(field.name, xfun.retType, otFunct, posCall);
         TreeElems.InsertParentTo(eleMeth, Op1);
         TreeElems.OpenElement(eleMeth);  //Set parent to add parameters.
-        eleMeth.rfun := xfun;            //Set function
+        eleMeth.fundec := xfun;            //Set function
         //Capture parameters
         CaptureParams(pars);    //Read parameters in "pars".
         if HayError then exit(nil);
@@ -1890,7 +1890,7 @@ begin
       //Complete node "eleMeth" now we have the "xfun" created.
       eleMeth.name := xfun.name;     //Update name.
       eleMeth.Typ  := xfun.retType;  //Update return type.
-      eleMeth.rfun := xfun;          //Set function
+      eleMeth.fundec := xfun;          //Set function
     end else begin  //Must be '['.
       //We have: array[something].
       Next;    //Takes "[".
@@ -1913,7 +1913,7 @@ begin
       //Complete node "eleMeth" now we have the "xfun" created.
       eleMeth.name := xfun.name;     //Update name.
       eleMeth.Typ  := xfun.retType;  //Update return type.
-      eleMeth.rfun := xfun;          //Set function
+      eleMeth.fundec := xfun;          //Set function
       //Finish exploration
       if token<>']' then begin
         GenError('"]" expected.');
@@ -1970,7 +1970,7 @@ begin
     eleMeth.fcallOp := true;  //Come from an operator.
     TreeElems.InsertParentTo(eleMeth, Op1);
     TreeElems.OpenElement(eleMeth);  //Set parent to add parameters.
-    eleMeth.rfun := opr1;  //Method for operator.
+    eleMeth.fundec := opr1;  //Method for operator.
     Op1 := eleMeth;   //Set new operand 1 (Expression)
   end else begin
     //First token should be a common operand
@@ -2008,7 +2008,7 @@ begin
       exit(nil);
     end;
     eleMeth.name := opr1.name;
-    eleMeth.rfun := opr1;  //Method for operator.
+    eleMeth.fundec := opr1;  //Method for operator.
     eleMeth.Typ  := opr1.retType;  //Complete returning type.
     AddCallerToFromCurr(opr1);   //Mark as used.
     //Prepare next operation.
@@ -2180,4 +2180,4 @@ begin
   inherited Destroy;
 end;
 
-end. //2400, 2886
+end. //2183

@@ -245,7 +245,7 @@ var
 begin
   parA := TEleExpress(fun.elements[0]);  //Parameter A
   parB := TEleExpress(fun.elements[1]);  //Parameter B
-  Oper := IfThen(fun.rfun.operTyp = opkBinary, fun.rfun.oper, fun.name);
+  Oper := IfThen(fun.fundec.operTyp = opkBinary, fun.fundec.oper, fun.name);
   Result := parA.StoAsStr+'(' + parA.Typ.name + ') ' + Oper + ' ' +
             parB.StoAsStr+'(' + parB.Typ.name + ')';
 end;
@@ -1853,7 +1853,7 @@ var
 begin
   if eleExp.opType = otFunct then begin
     //It's an expression. There should be a function
-    funcBase := eleExp.rfun;
+    funcBase := eleExp.fundec;
     if funcBase.callType = ctSysInline then begin
       //It's an INLINE function. It could be already implemented or not.
       if funcBase.idClass = eleFuncDec then begin

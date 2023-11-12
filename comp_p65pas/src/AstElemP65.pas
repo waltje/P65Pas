@@ -465,10 +465,10 @@ type  //Expression elements
   public  //Temporal variables required for evaluating expression.
     tempVars: TEleVarDecs;
   public  //Fields used when opType is otFunct.
-    rfun   : TEleFunDec;  //Reference to function declaration
+    fundec  : TEleFunDec;  //Reference to function declaration
     {When element is "otFunct", this flag indicates the function/method has been
     called using an operator instead of call the function by its name.}
-    fcallOp: boolean;
+    fcallOp : boolean;
     function IsConstantPlusVariable: boolean;
     function IsVariablePlusConstant: boolean;
     procedure exchange2Children;
@@ -706,17 +706,17 @@ type  //Instructions relative elements
 type  //Declaration elements (functions)
 
   //Function parameter
-  TParamFunc = record
+  TAstParam = record
     name    : string;      //Parameter name
     typ     : TEleTypeDec; //Reference to type
-    pvar    : TEleVarDec;  //Reference to variable used for this parameter
+    vardec  : TEleVarDec;  //Reference to variable used for this parameter
     srcPos  : TSrcPos;     //Parameter location.
-    adicVar : TAdicVarDec; //Aditional option for "pvar".
+    adicVar : TAdicVarDec; //Aditional option for "vardec".
     isLocVar: boolean;     //Flag to indicate this parameter is not a parameter but a
                            //local variable. In ths way we can reuse this record to define
                            //local variabes too.
   end;
-  TParamFuncArray = array of TParamFunc;
+  TAstParamArray = array of TAstParam;
 
   //Clase para almacenar información de las funciones
   TCodSysInline = procedure(funEleExp: TEleExpress) of object;
@@ -753,10 +753,10 @@ type  //Declaration elements (functions)
     IsInterrupt: boolean;      //Indicates the function is an ISR
     IsForward  : boolean;      //Identifies a forward declaration.
   public  //Parameters management
-    pars       : TParamFuncArray; //parámetros de entrada
+    pars       : TAstParamArray; //parámetros de entrada
     procedure ClearParams;
-    function SameParamsType(const funpars: TParamFuncArray): boolean;
-    function SameParamsName(const funpars: TParamFuncArray): boolean;
+    function SameParamsType(const funpars: TAstParamArray): boolean;
+    function SameParamsName(const funpars: TAstParamArray): boolean;
     function ParamTypesList: string;
   public
     {These properties allows to have always the reference to the function declaration and
@@ -1881,7 +1881,7 @@ begin
   Parent := nil;  //la raiz no tiene padre
 end;
 { TEleFunBase }
-function TEleFunBase.SameParamsType(const funpars: TParamFuncArray): boolean;
+function TEleFunBase.SameParamsType(const funpars: TAstParamArray): boolean;
 {Compara los parámetros de la función con una lista de parámetros. Si tienen el mismo
 número de parámetros y el mismo tipo, devuelve TRUE.}
 var
@@ -1901,7 +1901,7 @@ begin
   //Si llegó hasta aquí; hay coincidencia, sale con TRUE
   exit(true);
 end;
-function TEleFunBase.SameParamsName(const funpars: TParamFuncArray): boolean;
+function TEleFunBase.SameParamsName(const funpars: TAstParamArray): boolean;
 {Compara los parámetros de la función con una lista de parámetros. Si tienen el mismo
 nombre, devuelve TRUE. No se hace verificación de tipo o cantidad de parámetros. Esa
 verifiación debe haberse hecho previamente con SameParamsType().}
