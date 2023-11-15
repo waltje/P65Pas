@@ -73,7 +73,7 @@ begin
     exit;
   end;
   nod := TreeView1.Items.AddChild(nodParent, elem.text);
-  if elem.mirType in [mtyAsgnSim, mtyAsgnFun] then begin
+  if elem.mirType = mtyAssign then begin
 //    nod.Text :=   '<Assign>';
     nod.ImageIndex := 12;
     nod.SelectedIndex := 12;

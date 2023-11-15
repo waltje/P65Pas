@@ -167,9 +167,10 @@ begin
     if fundec.HasImplem then hasImplem := 'Yes' else hasImplem := 'Not';
     adicInformation :=
            'Return type: ' + ifthen(fundec.retType=nil,'Unknown', fundec.retType.name) + LineEnding +
-           'Address: $' + IntToHex(fundec.adrr, 3) + LineEnding +
+           //'Address: $' + IntToHex(fundec.adrr, 3) + LineEnding +
            'Size: ' + IntToStr(fundec.srcSize) + LineEnding +
            'Has Implem.: ' + hasImplem + LineEnding +
+           'Nº params: ' + IntToStr(length(fundec.pars)) + LineEnding +
            tmp;
   end else if elem.idClass = eleFuncImp then begin
     funimp := TEleFunImp(elem);
@@ -190,6 +191,9 @@ begin
     //Información adicional
     adicInformation :=
            'Return type: ' + ifthen(funimp.retType=nil,'Unknown', funimp.retType.name) + LineEnding +
+//           'Size: ' + IntToStr(funimp.srcSize) + LineEnding +
+//           'Has Implem.: ' + hasImplem + LineEnding +
+           'Nº params: ' + IntToStr(length(funimp.pars)) + LineEnding +
            tmp;
   end else if elem.idClass = eleUnit then begin
     txtEleType.Caption := 'Unit ('+elem.ClassName+')';

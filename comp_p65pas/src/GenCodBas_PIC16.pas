@@ -95,9 +95,9 @@ type
   protected  //Methods for set a function result.
     procedure SetFunNull(fun: TEleExpress);
     procedure SetFunConst(fun: TEleExpress);
-    procedure SetFunVariab(fun: TEleExpress; rVar: TEleVarDec);
+    procedure SetFunVariab(fun: TEleExpress; vardec: TEleVarDec);
     procedure SetFunVariab(fun: TEleExpress; addr: word);
-    procedure SetFunVariab_RamVarOf(fun: TEleExpress; rVar: TEleVarDec;
+    procedure SetFunVariab_RamVarOf(fun: TEleExpress; vardec: TEleVarDec;
       offset: integer; offsetVar: TEleVarDec);
     procedure SetFunExpres(fun: TEleExpress);
     //Set result as a constant.
@@ -547,10 +547,10 @@ begin
   lastASMcode := lacNone;
   AcumStatInZ := true;
 end;
-procedure TGenCodBas.SetFunVariab(fun: TEleExpress; rVar: TEleVarDec);
+procedure TGenCodBas.SetFunVariab(fun: TEleExpress; vardec: TEleVarDec);
 {Set an operand TxpEleExpress to type otVariab and storage stRamFix.}
 begin
-  fun.SetVariab(rVar);
+  fun.SetVariab(vardec);
   lastASMcode := lacNone;
   AcumStatInZ := true;   //Default TRUE is explained in Documentation.
 end;
@@ -562,11 +562,11 @@ begin
   lastASMcode := lacNone;
   AcumStatInZ := true;   //Default TRUE is explained in Documentation.
 end;
-procedure TGenCodBas.SetFunVariab_RamVarOf(fun: TEleExpress; rVar: TEleVarDec;
+procedure TGenCodBas.SetFunVariab_RamVarOf(fun: TEleExpress; vardec: TEleVarDec;
   offset: integer; offsetVar: TEleVarDec);
 {Set an operand TxpEleExpress to type otVariab and storage stRamVarOf.}
 begin
-  fun.SetVariab_RamVarOf(rVar, offset, offsetVar);
+  fun.SetVariab_RamVarOf(vardec, offset, offsetVar);
   lastASMcode := lacNone;
   AcumStatInZ := true;   //Default TRUE is explained in Documentation.
 end;
@@ -1241,7 +1241,7 @@ begin
   end;
   if OpRes.Sto = stRamFix then begin
     //Result in variable
-    _LDA(OpRes.rVar.addr);
+    _LDA(OpRes.vardec.addr);
     JUMP_IF_Z_pre(boolVal, longJump, igoto);  //We cannot apply optimization
   end else if OpRes.Sto = stRegister then begin
     {We first evaluate the case when it could be done an optimization}
@@ -1293,7 +1293,7 @@ If "longJump" is set it generates a long jump (more than 128 bytes). }
 begin
   if OpRes.Sto = stRamFix then begin
     //Result in variable
-    _LDA(OpRes.rVar.addr);
+    _LDA(OpRes.vardec.addr);
     JUMP_IF_Z_post(boolVal, longJump, curAddr);  //We cannot apply optimization
   end else if OpRes.Sto = stRegister then begin
     {We first evaluate the case when it could be done an optimization}
@@ -1415,7 +1415,7 @@ begin
     if fun.value.valBool then _LDAi(2) else _LDAi(0);
   end;
   stRamFix: begin
-    _LDA(fun.rVar.addr);  //values $00 or $02
+    _LDA(fun.vardec.addr);  //values $00 or $02
   end;
   stRegister: begin  //Already in WR
   end;
@@ -1440,14 +1440,14 @@ begin
     _LDAi(fun.value.valInt);
   end;
   stRamFix: begin
-    _LDA(fun.rVar.addr);
+    _LDA(fun.vardec.addr);
   end;
   stRamVarOf: begin
-    if fun.rvar.typ.IsByteSize then begin
+    if fun.vardec.typ.IsByteSize then begin
       //Indexado por Byte
-      _LDX(fun.rvar.addr);  //Load address
+      _LDX(fun.vardec.addr);  //Load address
       _LDAx(fun.offs);
-    end else if fun.rvar.typ.IsWordSize then begin
+    end else if fun.vardec.typ.IsWordSize then begin
       if fun.offs<256 then begin
         AddCallerToFromCurr(IX);  //We declare using IX
         //if not IX.allocated then begin
@@ -1455,9 +1455,9 @@ begin
         //  exit;
         //end;
         //Escribe dirección en puntero
-        _LDA(fun.rvar.addr);
+        _LDA(fun.vardec.addr);
         _STA(IX.addr);
-        _LDA(fun.rvar.addr+1);
+        _LDA(fun.vardec.addr+1);
         _STA(IX.addr+1);
         //Carga desplazamiento
         _LDYi(fun.offs);  //Load address
@@ -1507,9 +1507,9 @@ begin
     _LDAi(fun.value.LByte);
   end;
   stRamFix: begin
-    _LDA(fun.rVar.addr+1);
+    _LDA(fun.vardec.addr+1);
     _STA(H.addr);
-    _LDA(fun.rVar.addr);
+    _LDA(fun.vardec.addr);
   end;
   stRegister: begin  //Already in (H,A)
   end;
@@ -1517,7 +1517,7 @@ begin
 //    if Op^.Sto = stExpRef then begin
 //      idx := IX;  //Index variable
 //    end else begin
-//      idx := Op^.rVar;  //Index variable
+//      idx := Op^.vardec;  //Index variable
 //    end;
 //    if idx.typ.IsByteSize then begin
 //      //Indexed in zero page is simple
@@ -1604,7 +1604,7 @@ begin
   case par.Sto of
   stRamFix: begin
     SetFunExpres(fun);
-    if par.rvar.allocated then begin
+    if par.vardec.allocated then begin
       SetFunVariab(fun, par.addL);
     end else begin
       //We cannot set a variable yet
@@ -1633,7 +1633,7 @@ begin
   requireA;
   case par.Sto of
   stRamFix: begin
-    if par.rvar.allocated then begin
+    if par.vardec.allocated then begin
       SetFunVariab(fun, par.addH);
     end else begin
       //We cannot set a variable yet
@@ -1660,7 +1660,7 @@ begin
   requireA;
   case par.Sto of
   stRamFix: begin
-    if par.rvar.allocated then begin
+    if par.vardec.allocated then begin
       SetFunVariab(fun, par.add + 2);
     end else begin
       //We cannot set a variable yet
@@ -1699,7 +1699,7 @@ begin
       _LDAi(fun.value.valInt and $ff);
     end;
     stRamFix: begin
-      _LDA(fun.rVar.addr);
+      _LDA(fun.vardec.addr);
     end;
     stRegister: begin
       //Already in A
@@ -1719,7 +1719,7 @@ begin
       _LDXi(fun.value.valInt and $ff);
     end;
     stRamFix: begin
-      _LDX(fun.rVar.addr);
+      _LDX(fun.vardec.addr);
     end;
     stRegister: begin
       _TAX_opt;
@@ -1739,7 +1739,7 @@ begin
       _LDYi(fun.value.valInt and $ff);
     end;
     stRamFix: begin
-      _LDY(fun.rVar.addr);
+      _LDY(fun.vardec.addr);
     end;
     stRegister: begin
       _TAY;

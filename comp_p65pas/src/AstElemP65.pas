@@ -503,10 +503,10 @@ type  //Expression elements
       offsetVar: TEleVarDec);
   private //Fields used when opType is otVariab and Sto is stRamFix.
     dirVar: boolean;  //Flag that indicates the address should be read from "dirAdd".
-    dirAdd: word;     //Physical address when this expression is not associated to a variable (rvar).
+    dirAdd: word;     //Physical address when this expression is not associated to a variable (vardec).
   public  //Fields used when opType is otVariab.
     //Fields used when variable is solved but not allocated.
-    rvar   : TEleVarDec;  {Reference to variable, when variable is associated to a
+    vardec : TEleVarDec;  {Reference to variable, when variable is associated to a
                           variable declaration (stRamFix). Also is used to reference to
                           the variable with the final address (stRamVar or stRamVarOf).}
     //Fields for Offset when storage is stRamvarOf.
@@ -1159,14 +1159,14 @@ procedure TEleExpress.SetVariab(var0: TEleVarDec);
 begin
   opType    := otVariab;
   Sto       := var0.storage;  //Common is stRamFix
-  rvar      := var0;
+  vardec      := var0;
 end;
 procedure TEleExpress.SetVariab(add0: word);
 {Set as variable from an address.}
 begin
   opType    := otVariab;
   Sto       := stRamFix;
-  rvar      := nil;
+  vardec      := nil;
   //Set to used direct Address
   dirVar    := true;
   dirAdd    := add0;
@@ -1177,7 +1177,7 @@ procedure TEleExpress.SetVariab_RamVarOf(var0: TEleVarDec; offset: integer;
 begin
   opType    := otVariab;
   Sto       := stRamVarOf;  //Almacenamiento por defecto.
-  rvar      := var0;  //Use this reference to the variable-address.
+  vardec      := var0;  //Use this reference to the variable-address.
   //Fields for offset
   offs      := offset;
   offVar    := offsetVar;
@@ -1185,13 +1185,13 @@ end;
 
 function TEleExpress.add: word;
 begin
-  //By now we obtain it from rvar (when allocated)
+  //By now we obtain it from vardec (when allocated)
   if dirVar then begin
     //The address is stored in dirAdd
     exit(dirAdd);
   end else begin
-    //The address is the same of "rvar"
-    exit(rvar.addr);
+    //The address is the same of "vardec"
+    exit(vardec.addr);
   end;
 end;
 
@@ -1211,7 +1211,7 @@ begin
     //We assume if "dirVar" is set, "dirAdd" should be set too.
     exit(true);
   end else begin
-    exit(rvar.allocated);
+    exit(vardec.allocated);
   end;
 end;
 

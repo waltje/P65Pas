@@ -265,7 +265,7 @@ procedure TCompiler_PIC16.ConstanPropagation;
     rightOp := TEleExpress(assigExp.elements[1]);
     if (rightOp.Sto = stConst) and rightOp.evaluated then begin
        //It's the form: <variable> := <constant>
-      varDec := leftOp.rvar;  //Takes var declaration
+      varDec := leftOp.vardec;  //Takes var declaration
       consVal := rightOp.value;
       exit(true);
     end;
@@ -276,7 +276,7 @@ procedure TCompiler_PIC16.ConstanPropagation;
   begin
     if Op.opType <> otVariab then exit(false);
     if varDec.IsParameter then exit(false);
-    if (Op.rvar = varDec) then begin
+    if (Op.vardec = varDec) then begin
       Op.opType := otConst;
       Op.Sto := stConst;
       Op.evaluated := true;
@@ -685,7 +685,7 @@ begin
       mirFunDec := mirCont.AddFunDecUNF(astFunDec);
       astFunDec.mirFunDec := mirFunDec;  //Guarda referencia al MIR.
       //Explora sus elementos internos.
-      for elem In astFunDec.elements do begin
+      for elem In astFunDec.elemImplem do begin
           if elem.idClass = eleVarDec then begin
             astVarDec := TEleVarDec(elem);  //Guarda referencia
             //Agrega al MIR y guarda referencia.

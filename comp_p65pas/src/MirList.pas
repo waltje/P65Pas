@@ -15,8 +15,7 @@ type  //MIR base class
     ,mtyConDec      //Constant declaration
     ,mtyFunDec      //Function declaration
     //Instructions
-    ,mtyAsgnSim     //Assignment from simple operand
-    ,mtyAsgnFun     //Assignment from function
+    ,mtyAssign      //Assignment from function
     ,mtyFunCall     //Procedure or Function call
     ,mtyIfJump      //Conditional jump
     );
@@ -100,33 +99,26 @@ type  //MIR elements for expressions
   end;
 
 type  //MIR instructions
-  { TMirAsgn }
-  TMirAsgn = Class(TMirElement)
-    dest  : TMirOperand;         //Target variable.
-    procedure SetDestFromVarDec(vardec: TMirVarDec);
-  end;
-
-  { TMirAsgnSim }
-  TMirAsgnSim = Class(TMirAsgn)
-    opSrc : TMirOperand;         //Source operand.
-    constructor Create; virtual;
-  end;
-
-  { TMirAsgnFun }
-  TMirAsgnFun = Class(TMirAsgn)
-    func  : TMirFunction;         //Source function.
-    pars  : array of TMirOperand; //Parameters.
-    procedure UpdateText;         //Updates "Text" attribute.
-    procedure SetParAsVar(i: Integer; vardec: TMirVarDec);
-    constructor Create; virtual;
-  end;
 
   { TMirFunCall }
   TMirFunCall = Class(TMirElement)
     func  : TMirFunction;         //Function called.
     pars  : array of TMirOperand; //Parameter list.
     procedure UpdateText;         //Updates "Text" attribute.
-    constructor Create; virtual;
+    procedure SetParAsVar(i: Integer; vardec: TMirVarDec);
+    constructor Create;
+  end;
+
+  { TMirAssign }
+  TMirAssign = Class(TMirFunCall)
+  public
+    isSimple: Boolean;         //Activated when instruction is: var_a := <simple operamd>;
+    dest    : TMirOperand;     //Target variable.
+    opSrc   : TMirOperand;     //Source operand, when "isSimple = TRUE".
+    procedure SetDestFromVarDec(vardec: TMirVarDec);
+  public
+    procedure UpdateText;      //Updates "Text" attribute.
+    constructor Create;
   end;
 
 type  //Main Container
@@ -141,15 +133,16 @@ type  //Main Container
     function AddFunDecSNF(funcName0: TEleFunDec): TMirFunDec;
     function AddFunDecUNF(funcName0: TEleFunDec): TMirFunDec;
   public  //Adding instructions
-    function AddAssignSim(mcont: TMirFunDec; vardec: TMirVarDec; Op2: TEleExpress
-      ): TMirAsgnSim;
-    function NewAssignFun(mcont: TMirFunDec; vardec: TMirVarDec; Op2: TEleExpress
-      ): TMirAsgnFun;
-    function AddAssignFun(mcont: TMirFunDec; const vdec: TMirVarDec;
-      Op2: TEleExpress): TMirAsgnFun;
-
     function NewFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
-    function AddFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
+    function AddInlineFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
+    function AddNormalFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
+
+    function AddAssignSim(mcont: TMirFunDec; vardec: TMirVarDec; Op2: TEleExpress
+      ): TMirAssign;
+    function AddAssignFun(mcont: TMirFunDec; vardec: TMirVarDec;
+      Op2: TEleExpress): TMirAssign;
+    procedure AddAssign(mcont: TMirFunDec; vardec: TMirVarDec;
+      Op2: TEleExpress);
   public  //Reading from AST
     procedure ConvertBody(cntFunct: TMirFunDec; sntBlock: TEleCodeCont);
   public  //Initialization
@@ -232,39 +225,26 @@ begin
   items.Destroy;
   inherited Destroy;
 end;
-{ TMirAsgn }
-procedure TMirAsgn.SetDestFromVarDec(vardec: TMirVarDec);
-{Set "dest" attribute from a Mir Variable declaration. It's equivalent to create a new
-MIR Operand (from a MIR variable declaration) and set "dest" to that new operand.
-That's why this operand doesn't have an AST reference.}
-begin
-  dest.Text := vardec.text;
-  dest.opType := otVariab;
-  dest.varDec := vardec;
-  dest.astOperand := nil;
-end;
-{ TMirAsgnSim }
-constructor TMirAsgnSim.Create;
-begin
-  mirType := mtyAsgnSim;
-end;
-{ TMirAsgnFun }
-procedure TMirAsgnFun.UpdateText;
-{Set the "Text" attribute from the content of the instruction.}
+{ TMirFunCall }
+procedure TMirFunCall.UpdateText;
 var
   i: Integer;
 begin
   {$IFDEF DEBUGMODE}  //Only needed to display MIR
-  Text := dest.Text + ' := ' + func.Text;
-  for i:=0 to High(pars) do begin
-    //Agrega nombre de parámetro
-      if i=0 then Text += '(' + pars[i].Text
-      else        Text += ',' + pars[i].Text;
+  Text := func.Text;
+  if (func.funDec=Nil) or  //Is System
+     (func.funDec.astFunDec.callType in [ctUsrInline, ctSysInline]) then begin
+      //Only in this case, shows parameters
+      for i:=0 to High(pars) do begin
+        //Agrega nombre de parámetro
+          if i=0 then Text += '(' + pars[i].Text
+          else        Text += ',' + pars[i].Text;
+      end;
+      Text += ')';
   end;
-  Text += ')';
   {$ENDIF}
 end;
-procedure TMirAsgnFun.SetParAsVar(i: Integer; vardec: TMirVarDec);
+procedure TMirFunCall.SetParAsVar(i: Integer; vardec: TMirVarDec);
 {Set a parameter like a variable}
 var
   par: ^TMirOperand;
@@ -276,28 +256,36 @@ begin
   par^.varDec := vardec;
   par^.astOperand := nil;
 end;
-constructor TMirAsgnFun.Create;
-begin
-  mirType := mtyAsgnFun;
-end;
-procedure TMirFunCall.UpdateText;
-var
-  i: Integer;
-begin
-  {$IFDEF DEBUGMODE}  //Only needed to display MIR
-  Text := func.Text;
-  for i:=0 to High(pars) do begin
-    //Agrega nombre de parámetro
-      if i=0 then Text += '(' + pars[i].Text
-      else        Text += ',' + pars[i].Text;
-  end;
-  Text += ')';
-  {$ENDIF}
-end;
-{ TMirFunCall }
 constructor TMirFunCall.Create;
 begin
   mirType := mtyFunCall;
+end;
+{ TMirAssign }
+procedure TMirAssign.SetDestFromVarDec(vardec: TMirVarDec);
+{Set "dest" attribute from a Mir Variable declaration. It's equivalent to create a new
+MIR Operand (from a MIR variable declaration) and set "dest" to that new operand.
+That's why this operand doesn't have an AST reference.}
+begin
+  dest.Text := vardec.text;
+  dest.opType := otVariab;
+  dest.varDec := vardec;
+  dest.astOperand := nil;
+end;
+procedure TMirAssign.UpdateText;
+{Set the "Text" attribute from the content of the instruction.}
+begin
+  {$IFDEF DEBUGMODE}  //Only needed to display MIR
+  if isSimple then begin  //Simple assignment
+    Text := dest.Text + ' := ' + opSrc.Text;
+  end else begin   //Assignment from function
+    inherited UpdateText;  //Usamos la rutina de TMirFunCall.
+    Text := dest.Text + ' := ' + Text;
+  end;
+  {$ENDIF}
+end;
+constructor TMirAssign.Create;
+begin
+  mirType := mtyAssign;
 end;
 { TMirList }
 function TMirList.AddVarDec(mcont: TMirFunDec; varDec0: TEleVarDec): TMirVarDec;
@@ -363,7 +351,7 @@ begin
      MirOper.varDec := nil;
      MirOper.astOperand := AstOper;
   end else if AstOper.opType = otVariab then begin
-     MirOper.varDec := TMirVarDec(AstOper.rvar.mirVarDec);  //Must be set
+     MirOper.varDec := TMirVarDec(AstOper.vardec.mirVarDec);  //Must be set
      MirOper.astOperand := AstOper;
   end else begin
     MirOper.varDec := nil;
@@ -383,51 +371,114 @@ begin
     MirFunc.astOperand := nil;
   end;
 end;
-function TMirList.AddAssignSim(mcont: TMirFunDec;
-    vardec: TMirVarDec; //Ref. to create target variable.
-    Op2: TEleExpress): TMirAsgnSim;  //Source expression
-{Add element to the MIR container.}
-begin
-  //Set destination
-  Result:= TMirAsgnSim.Create;
-  Result.SetDestFromVarDec(vardec);  //Set variable destination.
-  //Set right operand
-  GetMIROperandFromASTExpress(Result.opSrc, Op2);
-  {$IFDEF DEBUGMODE}  //Only needed to display MIR
-  Result.text := Result.dest.Text + ' := ' + Op2.name;
-  {$ENDIF}
-  //Add to list
-  if mcont = nil then items.Add(Result) else mcont.items.Add(Result);
-end;
-function TMirList.NewAssignFun(mcont: TMirFunDec;
-    vardec: TMirVarDec; //Ref. to create target variable.
-    Op2: TEleExpress): TMirAsgnFun;
+//Adding instructions
+function TMirList.NewFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
 var
   astPar: TAstElement;
   i: Integer;
 begin
-  Result:= TMirAsgnFun.Create;
-  Result.SetDestFromVarDec(vardec);  //Set variable destination.
+  Result:= TMirFunCall.Create;
+
   //Set function operand
-  GetMIRFunctionFromASTExpress(Result.func, Op2);
+  GetMIRFunctionFromASTExpress(Result.func, Op1);
   //Set parameters
-  SetLength(Result.pars, Op2.elements.count);
+  SetLength(Result.pars, Op1.elements.count);
   i := 0;
-  for astPar in Op2.elements do begin
+  for astPar in Op1.elements do begin
     GetMIROperandFromASTExpress(Result.pars[i], TEleExpress(astPar));
     inc(i);
   end;
 end;
-function TMirList.AddAssignFun(mcont: TMirFunDec; const vdec: TMirVarDec;
-  Op2: TEleExpress): TMirAsgnFun;
+function TMirList.AddInlineFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
+{Add a new Function call instruction to the MIR container "mcont".}
+var
+  i: Integer;
+  astPar: TEleExpress;
+  tmpdec: TMirVarDec;
+begin
+  Result := NewFunCall(mcont, Op1);
+  //----------- Recursive part -------------
+  //Check if some parameter needs to be converted in an assignment
+  for i:=0 to Op1.elements.Count-1 do begin
+    astPar := TEleExpress(Op1.elements[i]);
+    if astPar.opType = otFunct then begin
+      //Create a new temporal variable declaration.
+      tmpdec := AddVarDec(mcont, '', astPar.Typ);
+      //Insert a new assigment
+      AddAssignFun(mcont, tmpdec, astPar);
+      //Update the parameter
+      Result.SetParAsVar(i, tmpdec);  //Convert parameter to the temporal variable.
+    end;
+  end;
+  Result.UpdateText;              //Update label.
+  //----------- End Recursive part -------------
+  //Add to list
+  if mcont=nil then items.Add(Result) else mcont.items.Add(Result);
+end;
+function TMirList.AddNormalFunCall(mcont: TMirFunDec; Op1: TEleExpress
+  ): TMirFunCall;
+var
+  i: Integer;
+  astPar: TEleExpress;
+  vardec: TMirVarDec;
+begin
+  Result := NewFunCall(mcont , Op1);
+  {Move all parameters (children nodes) to a separate assignment}
+  for i:=0 to Op1.elements.Count-1 do begin
+    astPar := TEleExpress(Op1.elements[i]);
+    vardec := Result.func.funDec.pars[i].vardec;
+    AddAssign(mcont, vardec, astPar); //???? Y no hay que buscar el método _set?
+  end;
+  Result.UpdateText;              //Update label.
+  //Add to list
+  if mcont=nil then items.Add(Result) else mcont.items.Add(Result);
+end;
+
+function TMirList.AddAssignSim(mcont: TMirFunDec; vardec: TMirVarDec;
+  Op2: TEleExpress): TMirAssign;  //Source expression
+{Add element to the MIR container.}
+begin
+  //Set destination
+  Result:= TMirAssign.Create;
+  Result.isSimple := true;
+  Result.SetDestFromVarDec(vardec);  //Set variable destination.
+  //Set right operand
+  GetMIROperandFromASTExpress(Result.opSrc, Op2);
+
+  Result.UpdateText;              //Update label.
+  //Add to list
+  if mcont = nil then items.Add(Result) else mcont.items.Add(Result);
+end;
+function TMirList.AddAssignFun(mcont: TMirFunDec; vardec: TMirVarDec;
+  Op2: TEleExpress): TMirAssign;
 {Add and assigment instruction to the MIR container "mcont". This is a recursive
 function.}
+  function NewAssignFun(vardec: TMirVarDec; Op2: TEleExpress
+    ): TMirAssign;
+  var
+    astPar: TAstElement;
+    i: Integer;
+  begin
+    Result:= TMirAssign.Create;
+    Result.isSimple := false;
+    Result.SetDestFromVarDec(vardec);  //Set variable destination.
+    //Set function operand
+    GetMIRFunctionFromASTExpress(Result.func, Op2);
+    //Set parameters
+    SetLength(Result.pars, Op2.elements.count);
+    i := 0;
+    for astPar in Op2.elements do begin
+      GetMIROperandFromASTExpress(Result.pars[i], TEleExpress(astPar));
+      inc(i);
+    end;
+  end;
+
 var
   astPar: TEleExpress;
   i: Integer;
   tmpdec: TMirVarDec;
 begin
-  Result := NewAssignFun(mcont, vdec, Op2);
+  Result := NewAssignFun(vardec, Op2);
   //----------- Recursive part -------------
   //Check if some parameter needs to be converted in an assignment
   for i:=0 to Op2.elements.Count-1 do begin
@@ -446,32 +497,37 @@ begin
   //Add to list
   if mcont=nil then items.Add(Result) else mcont.items.Add(Result);
 end;
-
-function TMirList.NewFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
-var
-  astPar: TAstElement;
-  i: Integer;
+procedure TMirList.AddAssign(mcont: TMirFunDec; vardec: TMirVarDec;
+  Op2: TEleExpress);
+{General function to add a new assignment from a var declaration and an AST expression
+element.}
 begin
-  Result:= TMirFunCall.Create;
-
-  //Set function operand
-  GetMIRFunctionFromASTExpress(Result.func, Op1);
-  //Set parameters
-  SetLength(Result.pars, Op1.elements.count);
-  i := 0;
-  for astPar in Op1.elements do begin
-    GetMIROperandFromASTExpress(Result.pars[i], TEleExpress(astPar));
-    inc(i);
+  if (Op2.opType = otVariab) then begin       //x := var1
+    AddAssignSim(mcont, vardec, Op2);
+  end else if (Op2.opType = otConst) then begin //x := CONS1
+    AddAssignSim(mcont, vardec, Op2);
+  end else if (Op2.opType = otFunct) then begin
+    //Op2 is a function: 2 or more operands
+    if Op2.fundec.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
+//        {IT's the form:
+//             x := func(x,y);
+//                  \_______/
+//                     Op2
+//        }
+//        //Generates an asignment for each parameter.
+//        SplitProcCall(curContainer, Op2);
+    end else if Op2.fundec.callType = ctSysInline then begin       //INLINE function
+      {IT's the form:
+           x := A + B
+                \___/
+                 Op2
+      or:
+           x := A++        }
+      {We expect parameters A, B should be simple operands (Constant or variables)
+      otherwise we will move them to a separate assignment}
+      AddAssignFun(mcont, vardec, Op2);      //Create assignment in TAC format.
+    end;
   end;
-end;
-function TMirList.AddFunCall(mcont: TMirFunDec; Op1: TEleExpress): TMirFunCall;
-{Add a new Function call instruction to the MIR container "mcont".}
-begin
-  Result := NewFunCall(mcont, Op1);
-
-  Result.UpdateText;              //Update label.
-  //Add to list
-  if mcont=nil then items.Add(Result) else mcont.items.Add(Result);
 end;
 //Reading from AST
 procedure TMirList.ConvertBody(cntFunct: TMirFunDec; sntBlock: TEleCodeCont);
@@ -482,38 +538,6 @@ Parameters:
   sntBlock  -> Block of code where are the sentences to need be prepared. It's the
                same of "cntFunct" except when "block" is nested like in a condiitonal.
 }
-  procedure AddAssign(const vardec: TMirVarDec;
-    Op2: TEleExpress);
-  {General function to add a new assignment from a var declaration and an AST expression
-  element.}
-  begin
-    if (Op2.opType = otVariab) then begin       //x := var1
-      AddAssignSim(cntFunct, vardec, Op2);
-    end else if (Op2.opType = otConst) then begin //x := CONS1
-      AddAssignSim(cntFunct, vardec, Op2);
-    end else if (Op2.opType = otFunct) then begin
-      //Op2 is a function: 2 or more operands
-      if Op2.fundec.callType in [ctSysNormal, ctUsrNormal] then begin  //Normal function
-//        {IT's the form:
-//             x := func(x,y);
-//                  \_______/
-//                     Op2
-//        }
-//        //Generates an asignment for each parameter.
-//        SplitProcCall(curContainer, Op2);
-      end else if Op2.fundec.callType = ctSysInline then begin       //INLINE function
-        {IT's the form:
-             x := A + B
-                  \___/
-                   Op2
-        or:
-             x := A++        }
-        {We expect parameters A, B should be simple operands (Constant or variables)
-        otherwise we will move them to a separate assignment}
-        AddAssignFun(cntFunct, vardec, Op2);      //Create assignment in TAC format.
-      end;
-    end;
-  end;
 {  function MoveParamToAssign(curContainer: TAstElement; Op: TEleExpress;
                              parvar: TEleVarDec): TEleExpress;
   {Mueve el nodo especificado "Op", que representa a un parámetro de la función, a una
@@ -572,8 +596,8 @@ Parameters:
     if Op1.opType <> otVariab then exit;
     //Split expressions in second operand of assignment.
     Op2 := TEleExpress(setMethod.elements[1]);  //Takes assignment source.
-    vardec := TMirVarDec(Op1.rvar.mirVarDec);
-    AddAssign(vardec, Op2);
+    vardec := TMirVarDec(Op1.vardec.mirVarDec);
+    AddAssign(cntFunct, vardec, Op2);
   end;
 {  function SplitExpress(curContainer: TAstElement; expMethod: TEleExpress): boolean;
   {Verify if an expression has more than three operands. If so then
@@ -608,7 +632,7 @@ Parameters:
   {Split a procedure (not INLINE) call instruction, inserting an assignment instruction
   for each parameter.}
   var
-    new_set, astPar: TEleExpress;
+    astPar: TEleExpress;
     fundec: TEleFunDec;
     i: Integer;
     mirfun: TMirFunCall;
@@ -617,18 +641,16 @@ Parameters:
     Result := false;
     if expMethod.opType <> otFunct then exit;   //Not a fucntion call
     fundec := expMethod.fundec;    //Base function reference
-    if fundec.codSysInline=nil then begin   //Not INLINE
-      mirfun := NewFunCall(cntFunct, expMethod);
-      {Move all parameters (children nodes) to a separate assignment}
-      for i:=0 to expMethod.elements.Count-1 do begin
-        astPar := TEleExpress(expMethod.elements[i]);
-        vardec := mirfun.func.funDec.pars[i].vardec;
-        AddAssignSim(cntFunct, vardec, astPar); //???? Y no hay que buscar el método _set?
+    case fundec.callType of
+    ctUsrNormal, ctSysNormal: begin
+      AddNormalFunCall(cntFunct, expMethod);
+    end;
+    ctUsrInline, ctSysInline: begin
+      AddInlineFunCall(cntFunct, expMethod);
+    end;
+    ctUsrExtern: begin
 
-      end;
-      mirfun.UpdateText;              //Update label.
-      //Add to list
-      if cntFunct=nil then items.Add(mirfun) else cntFunct.items.Add(mirfun);
+    end;
     end;
   end;
 

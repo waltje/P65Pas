@@ -403,10 +403,10 @@ begin
   stRamFix: begin
     //Es una variable normal
     //La dirección de una variable es constante
-    if par.rVar.allocated then begin
+    if par.vardec.allocated then begin
       SetFunConst(fun);
-      fun.value.valInt := par.rVar.addr;
-      fun.evaluated := par.rVar.allocated;
+      fun.value.valInt := par.vardec.addr;
+      fun.evaluated := par.vardec.allocated;
     end else begin
       SetFunExpres(fun); //Still as a function
     end;
@@ -436,7 +436,7 @@ begin
   end;
   stRamFix: begin
     SetFunExpres(fun);
-    _LDA(par.rvar.addr);
+    _LDA(par.vardec.addr);
     _EORi($FF);
   end;
   else
@@ -588,7 +588,7 @@ begin
       SetFunConst_byte(fun, 0);  //puede generar error
       exit;
     end else if parA.val = 255 then begin  //Caso especial
-      SetFunVariab(fun, parB.rVar);  //puede generar error
+      SetFunVariab(fun, parB.vardec);  //puede generar error
       exit;
     end;
     SetFunExpres(fun);
@@ -611,7 +611,7 @@ begin
       SetFunConst_byte(fun, 0);  //puede generar error
       exit;
     end else if parB.val = 255 then begin  //Caso especial
-      SetFunVariab(fun, parA.rVar);  //puede generar error
+      SetFunVariab(fun, parA.vardec);  //puede generar error
       exit;
     end;
     SetFunExpres(fun);
@@ -668,7 +668,7 @@ begin
   end;
   stConst_RamFix: begin
     if parA.val = 0 then begin  //Caso especial
-      SetFunVariab(fun, parB.rVar);
+      SetFunVariab(fun, parB.vardec);
       exit;
     end else if parA.val = 255 then begin  //Caso especial
       SetFunConst_byte(fun, 255);
@@ -691,7 +691,7 @@ begin
   end;
   stRamFix_Const: begin
     if parB.val = 0 then begin  //Caso especial
-      SetFunVariab(fun, parA.rVar);
+      SetFunVariab(fun, parA.vardec);
       exit;
     end else if parA.val = 255 then begin  //Caso especial
       SetFunConst_byte(fun, 255);
@@ -1164,7 +1164,7 @@ begin
     if stoo = stRamFix_Const then Exchange(parA, parB);
     if parA.val = 0 then begin
       //Caso especial
-      SetFunVariab(fun, parB.rVar);  //devuelve la misma variable
+      SetFunVariab(fun, parB.vardec);  //devuelve la misma variable
       exit;
     end else if parA.val = 1 then begin
       //Caso especial
@@ -1341,7 +1341,7 @@ begin
       exit;
     end else if parA.val = 1 then begin
       //Caso especial
-      SetFunVariab(fun, parB.rVar);  //devuelve la misma variable
+      SetFunVariab(fun, parB.vardec);  //devuelve la misma variable
       exit;
     end else if parA.val = 2 then begin
       //Caso especial
@@ -1938,7 +1938,7 @@ begin
   stRamFix: begin
     SetFunExpres(fun);
     //We have to return logical value inverted in A
-    _LDA(par.rVar.addr);
+    _LDA(par.vardec.addr);
     _EORi($FF);
   end;
   stRegister, stRegistA: begin
@@ -2085,7 +2085,7 @@ begin
         if parA.value.valBool = false then begin  //Special case.
           SetFunConst_bool(fun, false);
         end else begin  //Special case.
-          SetFunVariab(fun, parB.rVar);  //Can be problematic return "var". Formaly it should be an expression.
+          SetFunVariab(fun, parB.vardec);  //Can be problematic return "var". Formaly it should be an expression.
         end;
      end;
      stRegister, stRegistA: begin
@@ -2105,7 +2105,7 @@ begin
         SetFunConst_bool(fun, false);
         exit;
       end else begin  //Special case.
-        SetFunVariab(fun, parA.rVar);  //Can be problematic return "var". Formaly it should be an expression.
+        SetFunVariab(fun, parA.vardec);  //Can be problematic return "var". Formaly it should be an expression.
         exit;
       end;
     end;
@@ -2172,7 +2172,7 @@ begin
         if parA.value.valBool = true then begin  //Special case.
           SetFunConst_bool(fun, true);
         end else begin  //Special case.
-          SetFunVariab(fun, parB.rVar);  //Can be problematic return "var". Formaly it should be an expression.
+          SetFunVariab(fun, parB.vardec);  //Can be problematic return "var". Formaly it should be an expression.
         end;
      end;
      stRegister, stRegistA: begin
@@ -2192,7 +2192,7 @@ begin
         SetFunConst_bool(fun, true);
         exit;
       end else begin  //Special case.
-        SetFunVariab(fun, parA.rVar);  //Can be problematic return "var". Formaly it should be an expression.
+        SetFunVariab(fun, parA.vardec);  //Can be problematic return "var". Formaly it should be an expression.
         exit;
       end;
     end;
@@ -3161,7 +3161,7 @@ begin
   end;
   stRamFix_Const: begin
     if parB.val = 0 then begin  //Special case
-      SetFunVariab(fun, parA.rVar);
+      SetFunVariab(fun, parA.vardec);
     end else if parB.valL = 0 then begin
       SetFunExpres(fun);
       _CLC;
@@ -5341,17 +5341,17 @@ begin
   end;
   stRamFix: begin  //A common variable
     if (par.Typ = typByte) or (par.Typ = typChar) then begin
-      _INC(par.rvar.addr);
+      _INC(par.vardec.addr);
     end else if par.Typ = typWord then begin
-      _INC(par.rVar.addr);
+      _INC(par.vardec.addr);
       _BNE_post(LABEL1);  //label
-      _INC(par.rVar.addr+1);
+      _INC(par.vardec.addr+1);
 _LABEL_post(LABEL1);
     end else if par.Typ.catType = tctPointer then begin
       if par.Typ.ptrType.size = 1 then begin
-        _INC(par.rVar.addr);
+        _INC(par.vardec.addr);
         _BNE_post(LABEL1);  //label
-        _INC(par.rVar.addr+1);
+        _INC(par.vardec.addr+1);
 _LABEL_post(LABEL1);
       end else if par.Typ.ptrType.size <256 then begin
         _CLC;
@@ -5416,20 +5416,20 @@ begin
   end;
   stRamFix: begin  //A common variable
     if (par.Typ= typByte) or (par.Typ = typChar) then begin
-      _DEC(par.rVar.addr);
+      _DEC(par.vardec.addr);
     end else if par.Typ = typWord then begin
-      _LDA(par.rVar.addr);
+      _LDA(par.vardec.addr);
       _BNE_post(lbl1);
-      _DEC(par.rVar.addr+1);
+      _DEC(par.vardec.addr+1);
 _LABEL_post(lbl1);
-      _DEC(par.rVar.addr);
+      _DEC(par.vardec.addr);
     end else if par.Typ.catType = tctPointer then begin
       if par.Typ.ptrType.size = 1 then begin
-        _LDA(par.rVar.addr);
+        _LDA(par.vardec.addr);
         _BNE_post(lbl1);
-        _DEC(par.rVar.addr+1);
+        _DEC(par.vardec.addr+1);
   _LABEL_post(lbl1);
-        _DEC(par.rVar.addr);
+        _DEC(par.vardec.addr);
       end else if par.Typ.ptrType.size <256 then begin
         _SEC;
         _LDA(par.addL);
@@ -5629,7 +5629,7 @@ begin
       SetFunExpres(fun);  //No podemos devolver variable. Pero sí expresión
       _LDAi(0);
       _STA(H.addr);
-      _LDA(par.rVar.addr);
+      _LDA(par.vardec.addr);
     end else if par.Typ = typWord then begin
       //ya es Word
       SetFunVariab(fun, par.add);
@@ -5694,7 +5694,7 @@ begin
 //      SetFunExpres(fun);  //No podemos devolver variable. Pero sí expresión
 //      _LDAi(0);
 //      _STA(H.addr);
-//      _LDA(par.rVar.addr);
+//      _LDA(par.vardec.addr);
 //    end else if par.Typ = typWord then begin
 //      //ya es Word
 //      SetFunVariab(fun, par.add);
@@ -5736,9 +5736,9 @@ begin
       SetFunExpres(fun);  //No podemos devolver variable. Pero sí expresión
       _LDAi(0);
       _STA(H.addr);
-      _LDA(par.rVar.addr);
+      _LDA(par.vardec.addr);
     end else if par.Typ.size in [2, 4] then begin
-      w := par.rVar.addr;
+      w := par.vardec.addr;
       SetFunVariab(fun, w);
       {We could generate stRegister, but we prefer generate a variable, for simplicity
       and to have the possibility of assign: word(x) := ...}
@@ -5888,8 +5888,8 @@ begin
   end;
   if parA.Sto = stRamFix then begin
     nItems := parA.Typ.nItems;
-    nBytes := parA.rVar.typ.size;
-    itType := parA.rVar.typ.itmType;
+    nBytes := parA.vardec.typ.size;
+    itType := parA.vardec.typ.itmType;
     itSize := itType.size;
     case parB.Sto of
     stConst: begin
@@ -5909,7 +5909,7 @@ begin
         _LDXi(nBytes);
 _LABEL_pre(j2);
         _LDAx((startAddr-1) and $FFFF);  //Fix address to fit the index loop
-        _STAx((parA.rVar.addr-1) and $FFFF);  //Fix address to fit the index loop
+        _STAx((parA.vardec.addr-1) and $FFFF);  //Fix address to fit the index loop
         _DEX;
         _BNE_pre(j2);
       end else begin
@@ -5918,8 +5918,8 @@ _LABEL_pre(j2);
     end;
     stRamFix: begin
       if nBytes < 5 then begin
-        des:=parA.rVar.addr;
-        for src:=parB.rVar.addr to parB.rVar.addr+nBytes-1 do begin
+        des:=parA.vardec.addr;
+        for src:=parB.vardec.addr to parB.vardec.addr+nBytes-1 do begin
           _LDA(src);
           _STA(des);
           inc(des);
@@ -5929,8 +5929,8 @@ _LABEL_pre(j2);
         //Now we have the variable created in RAM. Lets move
         _LDXi(nBytes);
 _LABEL_pre(j2);
-        _LDAx((parB.rVar.addr-1) and $FFFF);  //Fix address to fit the index loop
-        _STAx((parA.rVar.addr-1) and $FFFF);  //Fix address to fit the index loop
+        _LDAx((parB.vardec.addr-1) and $FFFF);  //Fix address to fit the index loop
+        _STAx((parA.vardec.addr-1) and $FFFF);  //Fix address to fit the index loop
         _DEX;
         _BNE_pre(j2);
       end else begin
@@ -5966,14 +5966,14 @@ begin
     exit;  //We don't calculate constant here.
   end;
   if parA.Sto = stRamFix then begin
-    nBytes := parA.rVar.typ.size;
+    nBytes := parA.vardec.typ.size;
     case parB.Sto of
 //    stConst: begin
 //    end;
     stRamFix: begin
       if nBytes < 5 then begin
-        des:=parA.rVar.addr;
-        for src:=parB.rVar.addr to parB.rVar.addr+nBytes-1 do begin
+        des:=parA.vardec.addr;
+        for src:=parB.vardec.addr to parB.vardec.addr+nBytes-1 do begin
           _LDA(src);
           _STA(des);
           inc(des);
@@ -5983,8 +5983,8 @@ begin
         //Now we have the variable created in RAM. Lets move
         _LDXi(nBytes);
 _LABEL_pre(j2);
-        _LDAx((parB.rVar.addr-1) and $FFFF);  //Fix address to fit the index loop
-        _STAx((parA.rVar.addr-1) and $FFFF);  //Fix address to fit the index loop
+        _LDAx((parB.vardec.addr-1) and $FFFF);  //Fix address to fit the index loop
+        _STAx((parA.vardec.addr-1) and $FFFF);  //Fix address to fit the index loop
         _DEX;
         _BNE_pre(j2);
       end else begin
@@ -6351,7 +6351,7 @@ begin
 //        //has allowed pass because knows we can optimize here.
 //        op1 := TEleExpress(idx.elements[0]);   //Constant evaluated.
 //        op2 := TEleExpress(idx.elements[1]);   //Variable
-//        SetFunVariab_RamVarOf(fun, op2.rvar, op1.val, arrVar.rvar); //Index by variable and an offset
+//        SetFunVariab_RamVarOf(fun, op2.vardec, op1.val, arrVar.vardec); //Index by variable and an offset
 //      end else begin
         GenError('Not supported this index.', idx.srcDec);
         exit;
@@ -6395,12 +6395,12 @@ begin
       if itemType.IsByteSize then begin  //Must return a byte
         SetFunExpres(fun);
         //Variable index is word-size byte.
-        LoadByteIndexWord(idx.rvar, offset);
+        LoadByteIndexWord(idx.vardec, offset);
       end else if itemType.IsWordSize then begin
         SetFunExpres(fun);
         //Variable index is word-size byte.
-        //LoadWordIndexWord(idx.rvar, offset);   //Require IX
-        LoadWordIndexWord2(idx.rvar, offset)
+        //LoadWordIndexWord(idx.vardec, offset);   //Require IX
+        LoadWordIndexWord2(idx.vardec, offset)
       end else begin
         GenError('Cannot get item from this array type: %s.', [arrVar.Typ.name]);
       end;
@@ -7049,9 +7049,9 @@ begin
     //Calculate offset
     offset := arrVar.add;
     if itemType.IsByteSize then begin
-      SetByteIndexWord(idx.rvar, offset, parB);
+      SetByteIndexWord(idx.vardec, offset, parB);
     end else if itemType.IsWordSize then begin
-      SetWordIndexWord(idx.rvar, offset, parB);
+      SetWordIndexWord(idx.vardec, offset, parB);
     end else begin
       GenError('Not supported assigning to array of: %s.', [itemType.name], arrVar.srcDec);
     end;

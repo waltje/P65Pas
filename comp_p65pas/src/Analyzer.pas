@@ -1272,18 +1272,12 @@ procedure TAnalyzer.AnalyzeProcDeclar(objContainer: TEleTypeDec);
           end;
         end else if ele.location = locImplement then begin
           //Is an IMPLEMENTATION element.
-          if ele.idClass = eleFuncImp then begin
-            //Para las funciones, se debe comparar los parámetros
-            fun := TEleFunImp(ele);
-            if fun.SameParamsType(pars) then begin
-              {Two similar functions in the same IMPLEMENTATION scope.}
-              GenError(ER_DUPLIC_FUNC_,[procName], srcPos);
-              exit(nil);
-            end;
-          end else begin
-            //The same name of other element, is conflict.
-            GenError('Identifier "%s" already defined', [uname]);
-            exit;
+          //It shouldn't be a similar function (name and parameters).
+          fun := TEleFunImp(ele);
+          if fun.SameParamsType(pars) then begin
+            {Two similar functions in the same IMPLEMENTATION scope.}
+            GenError(ER_DUPLIC_FUNC_,[procName], srcPos);
+            exit(nil);
           end;
         end;
       end;
@@ -1824,8 +1818,8 @@ procedure TAnalyzer.AnalyzeFOR;
     TreeElems.AddElementAndOpen(_lequ);
     //Create a new variable for the expression "i<..."
     xvar := CreateExpression(idx.name, idx.Typ, otVariab, GetSrcPos);
-    xvar.SetVariab(idx.rvar);
-    TreeElems.AddElement(xvar);
+    xvar.SetVariab(idx.vardec);
+    TreeElems.AddElement(vardec);
 
     Op2 := GetExpression(0);
 
@@ -1959,7 +1953,7 @@ procedure TAnalyzer.AnalyzeFORwhile;
     TreeElems.AddElementAndOpen(_lequ);
     //Create a new variable for the expression "i<..."
     xvar := CreateExpression(idx.name, idx.Typ, otVariab, GetSrcPos);
-    xvar.SetVariab(idx.rvar);
+    xvar.SetVariab(idx.vardec);
     TreeElems.AddElement(xvar);
 
     valFin := GetExpression(0);
@@ -1987,7 +1981,7 @@ procedure TAnalyzer.AnalyzeFORwhile;
     TreeElems.AddElementAndOpen(Op1);  //Open Inc()
     //Create a new variable for the expression "i<..."
     xvar := CreateExpression(idx.name, idx.Typ, otVariab, GetSrcPos);
-    xvar.SetVariab(idx.rvar);
+    xvar.SetVariab(idx.vardec);
     TreeElems.AddElement(xvar);
     TreeElems.CloseElement;  //Close Inc()
     //Close Sentence
@@ -2031,7 +2025,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
     TreeElems.AddElementAndOpen(_comp);
     //Create a new variable expression "i<=..." or "i<..." or "i=...".
     xvar := CreateExpression(varComp.name, varComp.Typ, otVariab, GetSrcPos);
-    xvar.SetVariab(varComp.rvar);
+    xvar.SetVariab(varComp.vardec);
     TreeElems.AddElement(xvar);
     //Add the operand for expression "i<=..." or "i<..." or "i=...".
     if readExpression then begin
@@ -2140,7 +2134,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
       //Replace right part of comparisom
       Op2 := TEleExpress(_lequ.elements[1]);
       Op2.name := valFin.name;
-      Op2.rvar := valFin.rvar;
+      Op2.vardec := valFin.vardec;
     end else begin  //otFunct
       //In other cases we need to use "<"
       if not SetOperation(_lequ, idx.Typ, '<=') then exit;
@@ -2178,7 +2172,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
     TreeElems.AddElementAndOpen(Op1);  //Open Inc()
     //Create a new variable for the expression "i<..."
     xvar := CreateExpression(idx.name, idx.Typ, otVariab, GetSrcPos);
-    xvar.SetVariab(idx.rvar);
+    xvar.SetVariab(idx.vardec);
     TreeElems.AddElement(xvar);
     TreeElems.CloseElement;  //Close Inc()
     //Close Sentence
@@ -2226,7 +2220,7 @@ procedure TAnalyzer.AnalyzeFORrepeat;
       TreeElems.curNode := _lequ;
       //Add the temporal variable
       xvar := CreateExpression(tmpVar.name, tmpVar.Typ, otVariab, GetSrcPos);
-      xvar.SetVariab(tmpVar.rvar);
+      xvar.SetVariab(tmpVar.vardec);
       TreeElems.AddElement(xvar);
 
       TreeElems.curNode := eleCond;  //Restore node.

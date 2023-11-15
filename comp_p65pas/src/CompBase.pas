@@ -858,19 +858,23 @@ to the Syntax Tree in the current node. }
 var
   funimp: TEleFunImp;
   tmp: TAstListCallers;
+  i: Integer;
 begin
   funimp := CreateEleFunImp(funName, retTyp);
   funimp.srcDec := srcPos;       //Take position in code.
   funDeclar.implem := funimp;  //Complete reference
   funimp.declar := funDeclar;  //Reference to declaration
-  funimp.pars := funDeclar.pars;     //Copy from declaration
+//  funimp.pars := funDeclar.pars;     //Copy from declaration
   funimp.IsInterrupt := funDeclar.IsInterrupt; //Copy from declaration
   funDeclar.elemImplem := funimp.elements;       //Apunta sus elementos a la implementación.
   //La validación de duplicidad no se puede hacer hasta tener los parámetros.
   TreeElems.AddElementAndOpen(funimp);  //Se abre un nuevo espacio de nombres
   Result := funimp;
   //Crea parámetros en el nuevo espacio de nombres de la función
-  if addParam then CreateFunctionParams(funimp.pars);
+  if addParam then CreateFunctionParams(funDeclar.pars);
+  //Copiamos los parámetros de "funDeclar.pars" después de que CreateFunctionParams() los actualice
+  { #todo : ¿Realmente necesitamos tener una copia de los parámetros? }
+  funimp.pars := funDeclar.pars;     //Copy from declaration
 end;
 //Containers
 procedure TCompilerBase.RefreshAllElementLists;
@@ -1834,11 +1838,11 @@ begin
         //Must be a variable field.
         xvar := TEleVarDec(field);
         //AddCallerTo(field);  { TODO : ¿Es necesario? }
-        if (Op1.opType=otVariab) and (Op1.rvar.storage=stRamFix) and (xvar.storage = stRamFix) then begin
+        if (Op1.opType=otVariab) and (Op1.vardec.storage=stRamFix) and (xvar.storage = stRamFix) then begin
           //Two commons variables:  var1.var2
-//          xvar.addr := Op1.rvar.addr + xvar.addr;    //Fix address
+//          xvar.addr := Op1.vardec.addr + xvar.addr;    //Fix address
 //          Op1.Typ := xvar.typ;
-//          Op1.rvar := xvar;
+//          Op1.vardec := xvar;
           eleMeth := CreateExpression(token, xvar.typ, otVariab, GetSrcPos);
           //TreeElems.AddElementAndOpen(eleMeth);
           TreeElems.InsertParentTo(eleMeth, Op1);
