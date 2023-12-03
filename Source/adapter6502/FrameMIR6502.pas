@@ -77,14 +77,18 @@ begin
 //    nod.Text :=   '<Assign>';
     nod.ImageIndex := 12;
     nod.SelectedIndex := 12;
-  end else if elem.mirType= mtyFunCall then begin
-//    nod.Text :=   '<FunCall>';
-    nod.ImageIndex := 3;
-    nod.SelectedIndex := 3;
+  end else if elem.mirType = mtyIfJump then begin
+    nod.ImageIndex := 12;
+    nod.SelectedIndex := 12;
   end else if elem.mirType = mtyVarDec then begin
-//    nod.Text :=   '<VarDec>';
     nod.ImageIndex := 2;
     nod.SelectedIndex := 2;
+  end else if elem.mirType= mtyFunCall then begin
+    nod.ImageIndex := 3;
+    nod.SelectedIndex := 3;
+  end else if elem.mirType = mtyLabel then begin
+    nod.ImageIndex := 9;
+    nod.SelectedIndex := 9;
   end else begin
     nod.ImageIndex := 0;
     nod.SelectedIndex := 0;

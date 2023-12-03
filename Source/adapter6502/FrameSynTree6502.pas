@@ -183,7 +183,7 @@ begin
       //Expande los Body
       if elem.idClass = eleBody then nodElem.Expanded := true;
       if elem.idClass = eleSenten then nodElem.Expanded := true;
-      if elem.Parent.idClass = eleSenten then nodElem.Expanded := true; //Expande instrucciones
+      //if elem.Parent.idClass = eleSenten then nodElem.Expanded := true; //Expande instrucciones
   end;
 end;
 function TfraSynxTree6502.SelectedIsMain: boolean;

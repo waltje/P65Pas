@@ -1836,7 +1836,7 @@ number of elements.}
 begin
   if catType <> tctArray then exit(false);
   //I'm an array
-  debugln('Buscando arreglo en: ' + self.name);
+//  debugln('Buscando arreglo en: ' + self.name);
   if consNitm = nil then exit(false);  //Not yet set the size.
   exit( (nItems = numIt) and itmType.IsEquivalent(itTyp) );
 end;
