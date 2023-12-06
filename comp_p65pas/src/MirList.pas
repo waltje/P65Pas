@@ -87,6 +87,7 @@ type  //MIR Operand for expressions
   TMirOperand = object
     Text    : string;        //Label for the operand.
     opType  : TopType;       //Operand type (otVariab, otConst, otFunct) like AST elements.
+    Sto     : TStorage;     //Storage of the value (memory, register, value)
     Typ     : TEleTypeDec;  //Data type for the operand.
     varDec  : TMirVarDec;    //Ref. to var declaration, when it's variable. Otherwise it' will be NIL.
     conDec  : TMirConDec;    //Ref. to constant declaration.
@@ -198,6 +199,8 @@ type  //Main Container
     function AddAssign(mcont: TMirFunDec; vardec: TMirVarDec;
       Op2: TEleExpress): TMirAssign;
     function AddGoto(mcont: TMirFunDec; ilabel: integer = - 1): TMirGoto;
+    function AddGoto(mcont: TMirFunDec; mlabel: TMirLabel): TMirGoto;
+    function AddLabel(mcont: TMirFunDec): TMirLabel;
     procedure EndGoto(mcont: TMirFunDec; gotoInstr: TMirGoto);
     procedure EndGoto(mcont: TMirFunDec; ilabel: integer);
     function AddIfGoto(mcont: TMirFunDec; condition: TEleExpress; negated: boolean
@@ -739,6 +742,24 @@ begin
   //Add to list
   AddItem(mcont, Result);
 end;
+function TMirList.AddGoto(mcont: TMirFunDec; mlabel: TMirLabel): TMirGoto;
+begin
+  Result:= TMirGoto.Create;
+  Result.ilabel := mlabel.ilabel; //Update label
+  Result.UpdateText;              //Update label.
+  //Add to list
+  AddItem(mcont, Result);
+end;
+function TMirList.AddLabel(mcont: TMirFunDec): TMirLabel;
+var
+  lblInstruct: TMirLabel;
+begin
+  Result := TMirLabel.Create;
+  inc(ngotos);  //Count
+  Result.ilabel := ngotos;
+  Result.UpdateText;
+  AddItem(mcont, Result);
+end;
 procedure TMirList.EndGoto(mcont: TMirFunDec; gotoInstr: TMirGoto);
 var
   lblInstruct: TMirLabel;
@@ -965,6 +986,28 @@ Parameters:
       EndGoto(cntFunct, lblEndIf);
     end;
   end;
+  procedure ConvertWHILE(sen: TEleSentence);
+  {Convert an WHILE AST structure to the MIR representation.}
+  var
+    ifgot: TMirIfGoto;
+    condit, expBool: TEleExpress;
+    _blk: TEleCodeCont;
+    lblBegin: TMirLabel;
+  begin
+    //There are expressions and blocks inside conditions and loops.
+    expBool := TEleExpress(sen.elements[0]);   //Even element is condition
+    _blk   := TEleCodeCont(sen.elements[1]); //Odd element is block
+    if _blk.elements.Count=0 then exit;   //Empty block
+    condit := TEleExpress(expBool.elements[0]);
+    //Label to the beginning of the WHILE to test condition.
+    lblBegin := AddLabel(cntFunct);
+    ifgot := AddIfGoto(cntFunct, condit, true);
+    ConvertBody(cntFunct, _blk);
+    //Add goto to the begin of IF structure (including ELSEIF ...).
+    AddGoto(cntFunct, lblBegin);
+    //Add label
+    EndIfGoto(cntFunct, ifgot);
+  end;
 var
   sen: TEleSentence;
   eleSen, _set, ele, _proc: TAstElement;
@@ -1022,8 +1065,10 @@ begin
     end else if sen.sntType = sntProcCal then begin  //Procedure call
       _proc := sen.elements[0];  //Takes the proc.
       SplitProcCall(TEleExpress(_proc))
-    end else if sen.sntType in [sntIF, sntREPEAT, sntWHILE] then begin
+    end else if sen.sntType = sntIF then begin
       ConvertIF(sen);
+    end else if sen.sntType = sntWHILE then begin
+      ConvertWHILE(sen);
 {    end else if sen.sntType = sntFOR then begin
       //FOR sentences could need some aditional changes.
       _blk0 := nil;

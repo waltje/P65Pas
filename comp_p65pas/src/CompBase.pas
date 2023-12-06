@@ -1692,18 +1692,32 @@ in this function.
     {$IFDEF LogExpres} Op.txt:= cIn.tok; {$ENDIF} //Toma el texto
     Result := xfun;
   end;
+  procedure InicPointerRef(varOp: TEleExpress; idxVar: TEleExpress; offset: integer);
+  {Init the variable "varOp" to be a "Pointer referenced variable". This is like giving a
+  different storage mode to the variable but here, in the AST, we don't manage hardware
+  storages. This is intended to be in a higher abstraction level that hardware allocation.}
+  var
+    constOff: TEleExpress;
+  begin
+    TreeElems.OpenElement(varOp);
+    TreeElems.AddElement(idxVar);
+    constOff := CreateExpression('off', typByte, otConst, GetSrcPos);
+    constOff.Sto := stConst;
+    constOff.SetLiteraltIntConst(offset);
+    TreeElems.AddElement(constOff);
+    TreeElems.CloseElement;
+  end;
 var
   xvar: TEleVarDec;
   xcon: TEleConsDec;
-  eleMeth, Op1, OpIdx: TEleExpress;
+  eleMeth, Op1, OpIdx, constOff: TEleExpress;
   level: Integer;
-  ele, field: TAstElement;
+  ele, field, eleDec: TAstElement;
   posCall: TSrcPos;
   pars: TAstParamArray;
   xfun: TEleFunDec;
   findState: TAstFindState;
   upTok: String;
-//  value: TConsValue;
   typ, arrtyp: TEleTypeDec;
   cod: Longint;
   opr1: TEleFunImp;
@@ -1726,36 +1740,36 @@ begin
     Op1.SetLiteralBoolConst(false);
     Next;    //Pasa al siguiente
   end else if toktype = tkIdentifier then begin
-    ele := TreeElems.FindFirst(token); //Identify element
+    eleDec := TreeElems.FindFirst(token); //Identify element finding declaration.
     findState := TreeElems.curFind;    //Save because can be altered with CaptureParams()
-    if ele = nil then begin
+    if eleDec = nil then begin
       //Unidentified element.
       GenError(ER_UNKNOWN_IDE_, [token]);
       exit(nil);
     end;
-    if ele.idClass = eleConsDec then begin  //Is constant
-      xcon := TEleConsDec(ele);
-      AddCallerToFromCurr(ele);
-      Op1 := AddExpressAndOpen(ele.name, xcon.Typ, otConst, GetSrcPos);
+    if eleDec.idClass = eleConsDec then begin  //Is constant
+      xcon := TEleConsDec(eleDec);
+      AddCallerToFromCurr(eleDec);
+      Op1 := AddExpressAndOpen(eleDec.name, xcon.Typ, otConst, GetSrcPos);
       Op1.SetConstRef(xcon);
       Next;    //Pasa al siguiente
-    end else if ele.idClass = eleVarDec then begin  //Is variable
-      xvar := TEleVarDec(ele);
-      AddCallerToFromCurr(ele); //Add reference to variable, however final operand can be: <variable>.<fieldName>
-      Op1 := AddExpressAndOpen(ele.name, xvar.Typ, otVariab, GetSrcPos);
+    end else if eleDec.idClass = eleVarDec then begin  //Is variable
+      xvar := TEleVarDec(eleDec);
+      AddCallerToFromCurr(eleDec); //Add reference to variable, however final operand can be: <variable>.<fieldName>
+      Op1 := AddExpressAndOpen(eleDec.name, xvar.Typ, otVariab, GetSrcPos);
       Op1.SetVariab(xvar);
       Next;    //Pasa al siguiente
-    end else if ele.idClass in [eleFuncImp, eleFuncDec] then begin  //Is function
+    end else if eleDec.idClass in [eleFuncImp, eleFuncDec] then begin  //Is function
       {It's a function (or procedure), but we don't know what's the exact funtion because
       could be different overload versions.}
       posCall := GetSrcPos;  //Save position of the call.
       Next;               //Take identifier
       SkipWhites;         //Take spaces
-      if ele.idClass = eleFuncDec then xfun := TEleFunDec(ele)
-      else xfun := TEleFunImp(ele).declar;  //Es implementación
+      if eleDec.idClass = eleFuncDec then xfun := TEleFunDec(eleDec)
+      else xfun := TEleFunImp(eleDec).declar;  //Es implementación
       {We create the expression here because we're going to create parameters nodes
       when scanning with CaptureParams()}
-      Op1 := AddExpressAndOpen(ele.name, xfun.retType, otFunct, posCall);
+      Op1 := AddExpressAndOpen(eleDec.name, xfun.retType, otFunct, posCall);
       //Op1.Sto := ; { TODO : ¿No es necesario completar el almacenamiento de esta función? }
       //Capture parameters
       CaptureParams(pars);    //Read parameters in "pars".
@@ -1899,25 +1913,34 @@ begin
       //We have: array[something].
       Next;    //Takes "[".
       //Creates element in AST.
-      eleMeth := CreateExpression('', typNull, otFunct, GetSrcPos);
-      TreeElems.InsertParentTo(eleMeth, Op1);
-      TreeElems.OpenElement(eleMeth);  //Set parent to add parameter (item index).
-      //Capture index parameter.
+//      eleMeth := CreateExpression('', typNull, otFunct, GetSrcPos);
+//      TreeElems.InsertParentTo(eleMeth, Op1);
+//      TreeElems.OpenElement(eleMeth);  //Set parent to add parameter (item index).
+//      //Capture index parameter.
       OpIdx := GetExpression(0);
       if HayError then exit(nil);
-      //Lets find de getitem() method, now we have "OpIdx.Typ".
-      {This could be a _setitem(), if follows an operator ":=", but we don't know here,
-      so we always generates a _getitem(). If it's neccesary we will change it later.}
-      xfun := MethodGetItem(Op1.Typ, OpIdx.Typ);
-      if xfun=nil then begin
-        //There are not fields for this type
-        GenError('Undefined method _getitem(%s) for type %s', [OpIdx.Typ.name, Op1.Typ.name]);
-        exit(nil);
-      end;
-      //Complete node "eleMeth" now we have the "xfun" created.
-      eleMeth.name := xfun.name;     //Update name.
-      eleMeth.Typ  := xfun.retType;  //Update return type.
-      eleMeth.fundec := xfun;          //Set function
+      //Add offset
+      constOff := CreateExpression('@' + Op1.vardec.name, typByte, otConst, GetSrcPos);
+      constOff.Sto := stConst;
+      constOff.SetAddrVar(Op1.vardec);
+      TreeElems.AddElement(constOff);
+      //Set properties for Op1
+      Op1.name := '<var>^';
+      Op1.Typ := Op1.Typ.itmType;  //Take the type of item
+
+//      //Lets find de getitem() method, now we have "OpIdx.Typ".
+//      {This could be a _setitem(), if follows an operator ":=", but we don't know here,
+//      so we always generates a _getitem(). If it's neccesary we will change it later.}
+//      xfun := MethodGetItem(Op1.Typ, OpIdx.Typ);
+//      if xfun=nil then begin
+//        //There are not fields for this type
+//        GenError('Undefined method _getitem(%s) for type %s', [OpIdx.Typ.name, Op1.Typ.name]);
+//        exit(nil);
+//      end;
+//      //Complete node "eleMeth" now we have the "xfun" created.
+//      eleMeth.name := xfun.name;     //Update name.
+//      eleMeth.Typ  := xfun.retType;  //Update return type.
+//      eleMeth.fundec := xfun;          //Set function
       //Finish exploration
       if token<>']' then begin
         GenError('"]" expected.');
@@ -1926,7 +1949,7 @@ begin
       Next;   //Takes ']'.
     end;
     inc(level);
-    Op1 := eleMeth;   //Set new operand 1
+//    Op1 := eleMeth;   //Set new operand 1
   end;
   Result := Op1;  //aquí debe haber quedado el resultado
 end;

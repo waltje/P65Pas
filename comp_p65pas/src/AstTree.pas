@@ -299,6 +299,38 @@ begin
   AddElementAndOpen(Result);
 end;
 //Element resolution
+function TAstTree.FindFirst(const name: string): TAstElement;
+{Routine to resolve an identifier inside the SyntaxTree, following the scope rules for
+identifiers of the Pascal syntax (first the current space and then the parents spaces).
+If found returns the reference to the element otherwise returns NIL.
+If "name" is empty string, all the elements, of the Syntax Tree, will be scanned.}
+begin
+  //Busca recursivamente, a partir del espacio actual
+  curFind.Name := UpCase(name);  //This value won't change in all the search
+  curFind.inUnit := false;       //Set flag
+  if curCodCont=nil then exit(nil);  //This shouldn't happen
+  if curCodCont.idClass = eleBody then begin
+    {Para los cuerpos de procedimientos o de programa, se debe explorar hacia atrás a
+    partir de la posición del nodo actual.}
+    curFind.Idx := curCodCont.Index;   //Set index for searching. Here is the body index.
+    curFind.Node := curCodCont.Parent; //Set the parent node as the node to search.
+    Result := FindNext;             //Start search
+  end else begin
+    {La otras forma de resolución, debe ser:
+    1. Declaración de constantes, cuando se definen como expresión con otras constantes
+    2. Declaración de variables, cuando se definen como ABSOLUTE <variable>
+    3. Declaración de tipos, cuando se refiere a otros tipos o cuando se define como objeto.
+    }
+    curFind.Node := curNode;  //Actualiza nodo actual de búsqueda
+    {Formalmente debería apuntar a la posición del elemento actual, pero se deja
+    apuntando a la posición final, sin peligro, porque, la resolución de nombres para
+    constantes y variables, se hace solo en la primera pasada (con el árbol de sintaxis
+    llenándose.)}
+    curFind.Idx := curNode.elements.Count;
+    //Busca
+    Result := FindNext;
+  end;
+end;
 function TAstTree.FindNext: TAstElement;
 {Realiza una búsqueda recursiva en el nodo "curFindNode", a partir de la posición,
 "curFindIdx", hacia "atrás", el elemento con nombre "curFindName". También implementa
@@ -354,38 +386,6 @@ begin
       end;
     end;
   until false;
-end;
-function TAstTree.FindFirst(const name: string): TAstElement;
-{Routine to resolve an identifier inside the SyntaxTree, following the scope rules for
-identifiers of the Pascal syntax (first the current space and then the parents spaces).
-If found returns the reference to the element otherwise returns NIL.
-If "name" is empty string, all the elements, of the Syntax Tree, will be scanned.}
-begin
-  //Busca recursivamente, a partir del espacio actual
-  curFind.Name := UpCase(name);  //This value won't change in all the search
-  curFind.inUnit := false;       //Set flag
-  if curCodCont=nil then exit(nil);  //This shouldn't happen
-  if curCodCont.idClass = eleBody then begin
-    {Para los cuerpos de procedimientos o de programa, se debe explorar hacia atrás a
-    partir de la posición del nodo actual.}
-    curFind.Idx := curCodCont.Index;   //Set index for searching. Here is the body index.
-    curFind.Node := curCodCont.Parent; //Set the parent node as the node to search.
-    Result := FindNext;             //Start search
-  end else begin
-    {La otras forma de resolución, debe ser:
-    1. Declaración de constantes, cuando se definen como expresión con otras constantes
-    2. Declaración de variables, cuando se definen como ABSOLUTE <variable>
-    3. Declaración de tipos, cuando se refiere a otros tipos o cuando se define como objeto.
-    }
-    curFind.Node := curNode;  //Actualiza nodo actual de búsqueda
-    {Formalmente debería apuntar a la posición del elemento actual, pero se deja
-    apuntando a la posición final, sin peligro, porque, la resolución de nombres para
-    constantes y variables, se hace solo en la primera pasada (con el árbol de sintaxis
-    llenándose.)}
-    curFind.Idx := curNode.elements.Count;
-    //Busca
-    Result := FindNext;
-  end;
 end;
 function TAstTree.FindNextFuncName: TEleFunDec;
 {Scans recursively toward root, in the syntax tree, until find a function element with

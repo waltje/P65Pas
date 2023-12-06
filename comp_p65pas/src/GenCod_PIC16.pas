@@ -7770,7 +7770,7 @@ var
 begin
   //Create assigement method
   f := CreateInBOMethod(etyp, ':=', '_set', etyp, typNull, @SIF_arr_asig_arr);
-  f.getset := gsSetInSimple;
+  f.asgMode := asgSimple;
   //Create attribute "low" as constant.
   AddConstDeclarByte('low', 0);
   //Create methods
@@ -7778,22 +7778,6 @@ begin
   CreateInUOMethod(etyp, '', 'high'  , typByte, @arrayHigh);
   CreateInUOMethod(etyp, '', 'clear' , typNull, @SIF_ArrayClear);
 //  CreateInBOMethod(etyp, '', 'fill' , typByte, typNull, @SIF_ArrayFill);
-  //Getters and setters.
-  {Note we define only two getters, one for byte-index and one for word-index. Formally
-  we should create getters and setters for each type of the item.}
-  f1 := CreateInBOMethod(etyp, '', '_getitem', typByte, etyp.itmType, @SIF_GetItemIdxByte);
-  f1.getset := gsGetInItem;
-  f2 := CreateInBOMethod(etyp, '', '_getitem', typWord, etyp.itmType, @SIF_GetItemIdxWord);
-  f2.getset := gsGetInItem;
-  //AddCallerToFrom(IX, f.bodyNode);  //Dependency
-  f := CreateInTerMethod(etyp, '_setitem', typByte, etyp.itmType, typNull, @SIF_SetItemIndexByte);
-  f.getset := gsSetInItem;
-  f1.funset := f;         //Connect to getter
-  f := CreateInTerMethod(etyp, '_setitem', typWord, etyp.itmType, typNull, @SIF_SetItemIndexWord);
-  f.getset := gsSetInItem;
-  f2.funset := f;         //Connect to getter
-  //Operation for pointers
-//  CreateUOMethod(etyp, '@', 'addr', typWord, @SIF_address);
 end;
 procedure TGenCod.DefinePointer(etyp: TEleTypeDec);
 {Set operations that defines pointers aritmethic.}
@@ -7802,13 +7786,14 @@ var
 begin
   //Asignación desde word y Puntero
   f := CreateInBOMethod(etyp, ':=', '_set', typWord, typNull, @SIF_word_asig_word);
-  f.getset := gsSetInSimple;
+  f.asgMode := asgSimple;
   f := CreateInBOMethod(etyp, ':=', '_set', etyp, typNull, @SIF_word_asig_word);
-  f.getset := gsSetInSimple;
+  f.asgMode := asgSimple;
   //Getter and setter
   f1 := CreateInUOMethod(etyp, '', '_getptr', etyp.ptrType, @SIF_GetPointer);
   f1.getset := gsGetInPtr;
   f := CreateInBOMethod(etyp, '', '_setptr', etyp.ptrType, typNull, @SIF_SetPointer);
+  f.asgMode := asgSimple;
   f.getset := gsSetInPtr;
   f1.funset := f;
 
@@ -7826,9 +7811,11 @@ begin
   CreateInBOMethod(etyp, '<=', '_lequ', etyp   , typBool, @SIF_word_lequ_word);
 
   f := CreateInBOMethod(etyp, '+=', '_aadd', typWord, etyp, @SIF_word_aadd_word);
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
   f := CreateInBOMethod(etyp, '+=', '_aadd', typByte, etyp, @SIF_word_aadd_byte);
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
 //  etyp.CreateUnaryPostOperator('^',6, 'deref', @SIF_derefPointer);  //dereferencia
 end;
 procedure TGenCod.DefineObject(etyp: TEleTypeDec);
@@ -7839,6 +7826,7 @@ var
 begin
   //Create assigement method
   f := CreateInBOMethod(etyp, ':=', '_set', etyp, typNull, @SIF_obj_asig_obj);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
 end;
 {%ENDREGION}
@@ -8164,6 +8152,7 @@ begin
   //Methods-Operators
   TreeElems.OpenElement(typBool);
   f:=CreateInBOMethod(typBool, ':=',  '_set', typBool, typNull, @SIF_bool_asig_bool);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
   f:=CreateInUOMethod(typBool  , 'NOT', '_not', typBool, @SIF_not_bool, opkUnaryPre);
   f:=CreateInBOMethod(typBool, 'AND', '_and', typBool, typBool, @SIF_bool_and_bool);
@@ -8180,18 +8169,36 @@ begin
 end;
 procedure TGenCod.CreateByteOperations;
 var
-  f: TEleFunDec;
+  f, f1, f2: TEleFunDec;
 begin
-  /////////////// Byte type ////////////////////
   //Methods-Operators
   TreeElems.OpenElement(typByte);
-  //f:=CreateUOMethod(typByte, '@', 'addr', typWord, @SIF_address);
+  //Simple Assignment
   f:=CreateInBOMethod(typByte, ':=', '_set', typByte, typNull, @SIF_byte_asig_byte);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
+  //Array-pinter Assignment
+  f1 := CreateInBOMethod(typByte, '', '_getitem', typByte, typByte, @SIF_GetItemIdxByte);
+  f1.getset := gsGetInItem;
+  f2 := CreateInBOMethod(typByte, '', '_getitem', typWord, typByte, @SIF_GetItemIdxWord);
+  f2.getset := gsGetInItem;
+  //AddCallerToFrom(IX, f.bodyNode);  //Dependency
+  f := CreateInTerMethod(typByte, '_setitem', typByte, typByte, typNull, @SIF_SetItemIndexByte);
+  f.asgMode := asgSimple;
+  f.getset := gsSetInItem;
+  f1.funset := f;         //Connect to getter
+  f := CreateInTerMethod(typByte, '_setitem', typWord, typByte, typNull, @SIF_SetItemIndexWord);
+  f.asgMode := asgSimple;
+  f.getset := gsSetInItem;
+  f2.funset := f;         //Connect to getter
+
+  //Assignment with operations
   f:=CreateInBOMethod(typByte, '+=', '_aadd',typByte, typNull, @SIF_byte_aadd_byte);
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typByte, '-=', '_asub',typByte, typNull, @SIF_byte_asub_byte);
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typByte, '+' , '_add', typByte, typByte, @SIF_byte_add_byte);
   f.fConmutat := true;
   f:=CreateInBOMethod(typByte, '+' , '_add', typWord, typWord, @SIF_byte_add_word);
@@ -8235,6 +8242,7 @@ begin
   /////////////// Char type ////////////////////
   TreeElems.OpenElement(typChar);
   f:=CreateInBOMethod(typChar, ':=', '_set', typChar, typNull, @SIF_char_asig_char);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
   //opr.CreateOperation(typString, @SIF_char_asig_string);
   f:=CreateInBOMethod(typChar, '=' , '_equ', typChar, typBool, @SIF_char_equal_char);
@@ -8250,19 +8258,24 @@ begin
   /////////////// Word type ////////////////////
   TreeElems.OpenElement(typWord);
   f:=CreateInBOMethod(typWord, ':=' ,'_set' , typWord, typNull, @SIF_word_asig_word);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
   AddCallerToFrom(H, f.bodyNode);  //Dependency
   f:=CreateInBOMethod(typWord, ':=' ,'_set' , typByte, typNull, @SIF_word_asig_byte);
   f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typWord, '+=' ,'_aadd', typByte, typNull, @SIF_word_aadd_byte);
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typWord, '+=' ,'_aadd', typWord, typNull, @SIF_word_aadd_word);
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typWord, '-=' ,'_asub', typByte, typNull, @SIF_word_asub_byte);
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typWord, '-=' ,'_asub', typWord, typNull, @SIF_word_asub_word);
   AddCallerToFrom(E, f.bodyNode);  // Require _E
-  f.getset := gsSetOther;
+  f.asgMode := asgOperat;
+  f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typWord, '+'  , '_add', typByte, typWord, @SIF_word_add_byte);
   f.fConmutat := true;
   f:=CreateInBOMethod(typWord, '+'  , '_add', typWord, typWord, @SIF_word_add_word);
@@ -8315,6 +8328,7 @@ var
 begin
   TreeElems.OpenElement(typTriplet);
   f:=CreateInBOMethod(typTriplet, ':=', '_set', typTriplet, typNull, @SIF_triplet_asig_triplet);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typTriplet, ':=', '_set', typByte, typNull, @SIF_triplet_asig_byte);
   f.getset := gsSetInSimple;
@@ -8373,10 +8387,13 @@ begin
   /////////////// DWord type ////////////////////
   TreeElems.OpenElement(typDWord);
   f:=CreateInBOMethod(typDWord, ':=' ,'_set' , typDWord, typNull, @SIF_dword_asig_dword);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typDWord, ':=' ,'_set' , typByte, typNull, @SIF_dword_asig_byte);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
   f:=CreateInBOMethod(typDWord, ':=' ,'_set' , typWord, typNull, @SIF_dword_asig_word);
+  f.asgMode := asgSimple;
   f.getset := gsSetInSimple;
   AddCallerToFrom(H, f.bodyNode);  //Dependency
 //  f:=CreateInBOMethod(typDWord, '+=' ,'_aadd', typByte, typNull, @SIF_word_aadd_byte);

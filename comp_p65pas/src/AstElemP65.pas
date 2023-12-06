@@ -505,14 +505,14 @@ type  //Expression elements
     dirVar: boolean;  //Flag that indicates the address should be read from "dirAdd".
     dirAdd: word;     //Physical address when this expression is not associated to a variable (vardec).
   public  //Fields used when opType is otVariab.
-    //Fields used when variable is solved but not allocated.
-    vardec : TEleVarDec;  {Reference to variable, when variable is associated to a
-                          variable declaration (stRamFix). Also is used to reference to
-                          the variable with the final address (stRamVar or stRamVarOf).}
+    //Reference to Variable declaration when storage is stRamFix.
+    vardec : TEleVarDec;
     //Fields for Offset when storage is stRamvarOf.
     offs   : integer;     //Offset to address when storage is stRamVarOf.
     offVar : TEleVarDec;  //Reference to variable that defines the offset.  Like in arrays.
-    //Fields used when variable is allocated.
+    function IsConstAddressed: Boolean;
+    function IsConstVarAddressed: Boolean;
+  public  //Fields used when variable is allocated.
     function add: word;  {Base address.}
     function addL: word;
     function addH: word;
@@ -728,16 +728,19 @@ type  //Declaration elements (functions)
     opkUnaryPost,  //Unary Post operator
     opkBinary      //Binary operator
   );
+  TAsgMode = (
+     asgNone        //Is not assign function
+    ,asgSimple      //Simple Assignment: :=
+    ,asgOperat      //Assignment with operation: +=, -=, ...
+  );
   TFunGetset = (
     gsNone,         //Is not neither getter nor setter.
     gsGetInSimple,  //Getter INLINE simple:  _get()
     gsGetInItem,    //Getter INLINE for array: _getitem(index)
     gsGetInPtr,     //Getter INLINE for pointer: _getptr()
-    gsGetOther,     //Other getter.
     gsSetInSimple,  //Setter INLINE simple: _set(value)
     gsSetInItem,    //Setter INLINE for array: _setitem(index, value)
-    gsSetInPtr,     //Setter INLINE for poiner: _setptr(value)
-    gsSetOther      //Other setter.
+    gsSetInPtr      //Setter INLINE for poiner: _setptr(value)
     );
 
   TCallType = (
@@ -806,6 +809,7 @@ public mirFunDec: TObject;  //Formalmente debe ser TMirFunDec, pero se pone TObj
     only of operator.}
   public  //Flags for operators
     fConmutat  : boolean;      //Represents a conmutative binary operator.
+    asgMode    : TAsgMode;     //Indicates if function is of the form: :=, +=, -=, ...
     getset     : TFunGetset;   //Indicates if function is getter or setter.
     funset     : TEleFunDec;  //Reference to related setter when this function is getter.
     funget     : TEleFunDec;  //Reference to related getter when this function is setter.
@@ -1182,7 +1186,21 @@ begin
   offs      := offset;
   offVar    := offsetVar;
 end;
-
+function TEleExpress.IsConstAddressed: Boolean;
+{Indicates if this Expression is a variable addressed by a constant address.
+Only is valid when the Operand type is "otVariab" }
+begin
+  //When variable is addressed by a constant, it has only one node.
+  Exit(elements.Count=1);
+end;
+function TEleExpress.IsConstVarAddressed: Boolean;
+{Indicates if this Expression is a variable addressed by a constant address and a variable
+index.
+Only is valid when the Operand type is "otVariab" }
+begin
+  //When variable is addressed by a constant and a variable, it has two nodes.
+  Exit(elements.Count=2);
+end;
 function TEleExpress.add: word;
 begin
   //By now we obtain it from vardec (when allocated)

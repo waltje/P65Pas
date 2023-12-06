@@ -2480,11 +2480,18 @@ begin
         if ex.opType = otFunct then begin
           //Should be a procedure or function call.
           if ex.fcallOp then begin   //It comes from an operator
-            //Only assignments ':=', '+=' ,'-=' is allowed.
-            if not (ex.fundec.getset in [gsSetInItem,gsSetInPtr,gsSetInSimple,gsSetOther]) then begin
+            //Validate if expression is allowed here.
+            if ex.fundec.retType <> typNull then begin  //Return a type. Like "x + y".
                GenError('Expressions are not allowed here.', ex.srcDec);
             end;
-          end else begin             //Should be a function call
+            //Set sentence type
+            if ex.fundec.getset in [gsSetInItem,gsSetInPtr,gsSetInSimple] then begin
+              //Only assignment ':=' is considered as an Assignment
+            end else begin
+              //Operands like '+=' ,'-=', ... are not.
+              snt.sntType := sntProcCal;   //Update type.
+            end;
+          end else begin             //Should be a function call, like inc(x);
             snt.sntType := sntProcCal;   //Update type.
           end;
         end else begin
